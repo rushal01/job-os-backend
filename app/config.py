@@ -1,10 +1,20 @@
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
-from pydantic import Field
 
 
 class Settings(BaseSettings):
     # Database
     SUPABASE_DB_URL: str = "postgresql+asyncpg://user:pass@localhost:6543/dbname"
+
+    @model_validator(mode="after")
+    def _fix_db_url_scheme(self) -> "Settings":
+        """Ensure the DB URL uses the asyncpg driver."""
+        url = self.SUPABASE_DB_URL
+        if url.startswith("postgresql://"):
+            self.SUPABASE_DB_URL = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        elif url.startswith("postgres://"):
+            self.SUPABASE_DB_URL = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        return self
     SUPABASE_URL: str = "https://your-project.supabase.co"
     SUPABASE_SERVICE_ROLE_KEY: str = "your-service-role-key"
     SUPABASE_JWT_SECRET: str = "your-jwt-secret"
