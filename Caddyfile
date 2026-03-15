@@ -1,0 +1,35 @@
+# Caddyfile — Reverse proxy for Job Application OS API
+#
+# Usage:
+#   Production: Set DOMAIN env var to your API domain (e.g., api.yourdomain.com)
+#   Local dev:  Not needed — access FastAPI directly on port 8000
+#
+# Caddy automatically provisions and renews HTTPS via Let's Encrypt.
+
+{$DOMAIN:localhost} {
+	# Reverse proxy all traffic to FastAPI
+	reverse_proxy fastapi:8000
+
+	# Health check endpoint — no access log noise
+	handle /api/v1/health {
+		reverse_proxy fastapi:8000
+	}
+
+	# Security headers
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		-Server
+	}
+
+	# Gzip compression
+	encode gzip
+
+	# Access logging
+	log {
+		output stdout
+		format json
+	}
+}

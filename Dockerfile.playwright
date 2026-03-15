@@ -1,0 +1,54 @@
+# Dockerfile.playwright — Isolated browser automation container
+#
+# Used by Celery tasks for:
+#   - ATS auto-fill and submission (application_tasks.py)
+#   - Job board scraping/discovery (discovery_tasks.py)
+#   - Outreach contact discovery (outreach_tasks.py)
+#
+# Memory-capped at 1GB in docker-compose.yml to prevent runaway tabs.
+
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install system deps required by Chromium
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libnss3 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libasound2 \
+    libatspi2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python deps
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir playwright
+
+# Install Chromium browser (only Chromium, not Firefox/WebKit)
+RUN playwright install chromium --with-deps
+
+# Copy application code
+COPY . .
+
+# Run as non-root for security
+RUN useradd -m -s /bin/bash playwright
+USER playwright
+
+# The playwright container runs as a Celery worker that only picks up
+# browser-automation tasks from the "playwright" queue.
+CMD ["celery", "-A", "app.tasks.celery_app", "worker", \
+     "--loglevel=info", \
+     "--concurrency=2", \
+     "--queues=playwright", \
+     "--hostname=playwright@%h"]
