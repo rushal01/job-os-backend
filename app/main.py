@@ -86,6 +86,11 @@ def create_app() -> FastAPI:
     # --- Routers ---
     application.include_router(api_v1_router)
 
+    # Root-level health check for Render / load balancer probes
+    @application.get("/health")
+    async def root_health_check() -> dict:
+        return {"status": "ok"}
+
     return application
 
 
