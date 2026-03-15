@@ -144,7 +144,18 @@ async def score_job(
     db: AsyncSession = Depends(get_db),
 ) -> TaskResponse:
     """Trigger async scoring for a single job."""
-    raise NotImplementedError
+    from app.models.task import Task
+    from app.tasks.scoring_tasks import score_job as celery_score
+
+    task = Task(user_id=current_user.id, task_name="score_job", status="pending", progress_pct=0.0)
+    db.add(task)
+    await db.flush()
+    await db.refresh(task)
+
+    result = celery_score.delay(str(current_user.id), str(job_id))
+    task.celery_task_id = result.id
+    await db.commit()
+    return TaskResponse(task_id=str(task.id))
 
 
 @router.post("/{job_id}/generate", response_model=TaskResponse)
@@ -155,7 +166,24 @@ async def generate_content_for_job(
     db: AsyncSession = Depends(get_db),
 ) -> TaskResponse:
     """Trigger async content generation for a job."""
-    raise NotImplementedError
+    # Get active profile for user
+    from sqlalchemy import select
+
+    from app.models.profile import Profile
+    from app.services.content_service import generate_resume
+    result = await db.execute(
+        select(Profile).where(
+            Profile.user_id == current_user.id,
+            Profile.is_active == True,  # noqa: E712
+        )
+    )
+    profile = result.scalar_one_or_none()
+    if not profile:
+        raise AppError(code=ErrorCode.RESOURCE_NOT_FOUND, message="No active profile found")
+
+    task_id = await generate_resume(db, current_user.id, job_id, profile.id, instructions)
+    await db.commit()
+    return TaskResponse(task_id=task_id)
 
 
 @router.post("/bulk-score", response_model=TaskResponse)
@@ -165,7 +193,11 @@ async def bulk_score_jobs(
     db: AsyncSession = Depends(get_db),
 ) -> TaskResponse:
     """Trigger bulk async scoring for multiple jobs."""
-    raise NotImplementedError
+    from app.services.scoring_service import bulk_score_jobs as do_bulk_score
+
+    task_id = await do_bulk_score(db, current_user.id, body.job_ids)
+    await db.commit()
+    return TaskResponse(task_id=task_id)
 
 
 @router.post("/discover", response_model=TaskResponse)
@@ -175,4 +207,17 @@ async def discover_jobs(
     db: AsyncSession = Depends(get_db),
 ) -> TaskResponse:
     """Trigger async job discovery for a profile."""
-    raise NotImplementedError
+    from app.models.task import Task
+    from app.tasks.discovery_tasks import discover_jobs as celery_discover
+
+    task = Task(
+        user_id=current_user.id, task_name="discover_jobs", status="pending", progress_pct=0.0,
+    )
+    db.add(task)
+    await db.flush()
+    await db.refresh(task)
+
+    result = celery_discover.delay(str(current_user.id), str(body.profile_id))
+    task.celery_task_id = result.id
+    await db.commit()
+    return TaskResponse(task_id=str(task.id))

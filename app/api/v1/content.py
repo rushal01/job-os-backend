@@ -6,22 +6,16 @@
 import uuid
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.common import TaskResponse
+from app.services import content_service
 
 router = APIRouter(prefix="/content")
-
-
-class GenerateResumeRequest:
-    """Inline request model for resume generation."""
-    pass
-
-
-from pydantic import BaseModel
 
 
 class _GenerateResumeBody(BaseModel):
@@ -52,7 +46,11 @@ async def generate_resume(
     db: AsyncSession = Depends(get_db),
 ) -> TaskResponse:
     """Trigger async resume generation tailored to a specific job."""
-    raise NotImplementedError
+    task_id = await content_service.generate_resume(
+        db, current_user.id, body.job_id, body.profile_id, body.instructions,
+    )
+    await db.commit()
+    return TaskResponse(task_id=task_id)
 
 
 @router.post("/generate-cover-letter", response_model=TaskResponse)
@@ -62,7 +60,11 @@ async def generate_cover_letter(
     db: AsyncSession = Depends(get_db),
 ) -> TaskResponse:
     """Trigger async cover letter generation."""
-    raise NotImplementedError
+    task_id = await content_service.generate_cover_letter(
+        db, current_user.id, body.job_id, body.profile_id,
+    )
+    await db.commit()
+    return TaskResponse(task_id=task_id)
 
 
 @router.post("/generate-answers", response_model=TaskResponse)
@@ -72,7 +74,11 @@ async def generate_answers(
     db: AsyncSession = Depends(get_db),
 ) -> TaskResponse:
     """Trigger async application question answering."""
-    raise NotImplementedError
+    task_id = await content_service.generate_answers(
+        db, current_user.id, body.job_id, body.questions,
+    )
+    await db.commit()
+    return TaskResponse(task_id=task_id)
 
 
 @router.post("/regenerate", response_model=TaskResponse)
@@ -82,4 +88,8 @@ async def regenerate_content(
     db: AsyncSession = Depends(get_db),
 ) -> TaskResponse:
     """Regenerate a document with new instructions."""
-    raise NotImplementedError
+    task_id = await content_service.regenerate_document(
+        db, current_user.id, body.document_id, body.instructions,
+    )
+    await db.commit()
+    return TaskResponse(task_id=task_id)

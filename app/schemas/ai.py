@@ -1,12 +1,13 @@
 """AI Provider Management schemas — API Contract Section 4.8.
 
-Defines request/response models for API key management, model config, and usage stats.
+Defines request/response models for API key management, model config, usage stats,
+and the internal AI proxy request/response types.
 """
 
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class APIKeyInfo(BaseModel):
@@ -59,3 +60,37 @@ class UsageStats(BaseModel):
     total_cost: float = 0.0
     by_provider: dict = {}
     by_task: dict = {}
+
+
+class AIRequest(BaseModel):
+    """Internal request to the AI proxy."""
+
+    user_id: uuid.UUID
+    task_type: str  # scoring, content_resume, content_cl, copilot, qa_check
+    prompt: str
+    system_prompt: str | None = None
+    model_override: str | None = None
+    max_tokens: int = 4096
+    temperature: float = 0.7
+    response_format: str | None = None  # "json" or None
+
+
+class AIResponse(BaseModel):
+    """Response from AI proxy."""
+
+    content: str
+    model_used: str
+    provider: str  # anthropic, openai, google
+    input_tokens: int
+    output_tokens: int
+    cost_usd: float
+    latency_ms: float
+
+
+class ProviderConfig(BaseModel):
+    """Per-provider configuration."""
+
+    provider: str
+    model: str
+    cost_per_input_token: float
+    cost_per_output_token: float

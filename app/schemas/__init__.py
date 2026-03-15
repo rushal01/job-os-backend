@@ -9,7 +9,17 @@ from app.schemas.admin import (
     SuspendRequest,
     SystemHealth,
 )
-from app.schemas.ai import APIKeyCreate, APIKeyInfo, ModelConfig, UsageStats
+from app.schemas.ai import (
+    AIRequest,
+    AIResponse,
+    APIKeyCreate,
+    APIKeyInfo,
+    APIKeyValidation,
+    ModelConfig,
+    ModelConfigUpdate,
+    ProviderConfig,
+    UsageStats,
+)
 from app.schemas.application import (
     ApplicationCreate,
     ApplicationResponse,
@@ -60,7 +70,15 @@ from app.schemas.profile import (
     ProfileResponse,
     ProfileUpdate,
 )
-from app.schemas.review import ApproveRequest, RejectRequest, ReviewQueueItem
+from app.schemas.review import (
+    ApproveRequest,
+    BulkApproveRequest,
+    BulkApproveResponse,
+    RegenerateRequest,
+    RejectRequest,
+    ReviewQueueItem,
+    ReviewQueueItemDetail,
+)
 from app.schemas.skill import SkillBatchImport, SkillCreate, SkillResponse, SkillUpdate
 from app.schemas.work_experience import (
     WorkExperienceCreate,
@@ -119,8 +137,12 @@ __all__ = [
     "ApplicationStatusUpdate",
     # review
     "ReviewQueueItem",
+    "ReviewQueueItemDetail",
     "ApproveRequest",
     "RejectRequest",
+    "RegenerateRequest",
+    "BulkApproveRequest",
+    "BulkApproveResponse",
     # notification
     "NotificationResponse",
     # file
@@ -128,9 +150,14 @@ __all__ = [
     "PresignUploadResponse",
     "ConfirmUploadRequest",
     # ai
+    "AIRequest",
+    "AIResponse",
     "APIKeyInfo",
     "APIKeyCreate",
+    "APIKeyValidation",
     "ModelConfig",
+    "ModelConfigUpdate",
+    "ProviderConfig",
     "UsageStats",
     # interview
     "InterviewCreate",

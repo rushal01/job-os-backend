@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.exceptions import AppError, ErrorCode
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.common import DataResponse, PaginatedResponse, TaskResponse
@@ -21,6 +22,7 @@ from app.schemas.review import (
     ReviewQueueItem,
     ReviewQueueItemDetail,
 )
+from app.services import review_service
 
 router = APIRouter(prefix="/review")
 
@@ -32,9 +34,12 @@ async def list_review_items(
     type_filter: str | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> PaginatedResponse[ReviewQueueItem]:
+) -> dict:
     """List review queue items with cursor pagination."""
-    raise NotImplementedError
+    items, next_cursor, has_more = await review_service.list_review_items(
+        db, current_user.id, cursor, limit, type_filter,
+    )
+    return {"data": items, "next_cursor": next_cursor, "has_more": has_more}
 
 
 @router.get("/{item_id}", response_model=DataResponse[ReviewQueueItemDetail])
@@ -42,9 +47,12 @@ async def get_review_item(
     item_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> DataResponse[ReviewQueueItemDetail]:
+) -> dict:
     """Get a review queue item with full detail."""
-    raise NotImplementedError
+    item = await review_service.get_review_item(db, current_user.id, item_id)
+    if not item:
+        raise AppError(code=ErrorCode.RESOURCE_NOT_FOUND, message="Review item not found")
+    return {"data": item}
 
 
 @router.post("/{item_id}/approve", response_model=DataResponse[ReviewQueueItem])
@@ -53,9 +61,11 @@ async def approve_item(
     body: ApproveRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> DataResponse[ReviewQueueItem]:
+) -> dict:
     """Approve a review queue item, optionally with edited content."""
-    raise NotImplementedError
+    item = await review_service.approve_item(db, current_user.id, item_id, body.edited_content)
+    await db.commit()
+    return {"data": item}
 
 
 @router.post("/{item_id}/reject", response_model=DataResponse[ReviewQueueItem])
@@ -64,9 +74,11 @@ async def reject_item(
     body: RejectRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> DataResponse[ReviewQueueItem]:
+) -> dict:
     """Reject a review queue item with a reason."""
-    raise NotImplementedError
+    item = await review_service.reject_item(db, current_user.id, item_id, body.reason)
+    await db.commit()
+    return {"data": item}
 
 
 @router.post("/{item_id}/regenerate", response_model=TaskResponse)
@@ -77,7 +89,9 @@ async def regenerate_item(
     db: AsyncSession = Depends(get_db),
 ) -> TaskResponse:
     """Regenerate content for a review queue item."""
-    raise NotImplementedError
+    task_id = await review_service.regenerate_item(db, current_user.id, item_id, body.instructions)
+    await db.commit()
+    return TaskResponse(task_id=task_id)
 
 
 @router.post("/bulk-approve", response_model=BulkApproveResponse)
@@ -87,4 +101,6 @@ async def bulk_approve(
     db: AsyncSession = Depends(get_db),
 ) -> BulkApproveResponse:
     """Approve multiple review queue items at once."""
-    raise NotImplementedError
+    count = await review_service.bulk_approve(db, current_user.id, body.item_ids)
+    await db.commit()
+    return BulkApproveResponse(approved=count)
