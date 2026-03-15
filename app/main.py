@@ -18,12 +18,37 @@ from app.core.logging import setup_logging
 from app.core.middleware import RequestLoggingMiddleware
 
 
+async def _run_migrations() -> None:
+    """Run Alembic migrations using the app's async engine."""
+    from loguru import logger
+
+    try:
+        from alembic import command
+        from alembic.config import Config
+
+        alembic_cfg = Config("alembic.ini")
+        alembic_cfg.set_main_option("sqlalchemy.url", settings.SUPABASE_DB_URL)
+
+        # Run in a thread since alembic's command.upgrade is synchronous
+        import asyncio
+
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, command.upgrade, alembic_cfg, "head")
+        logger.info("Database migrations applied successfully")
+    except Exception as exc:
+        logger.warning(f"Database migrations failed (will retry on next restart): {exc}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     setup_logging()
     from loguru import logger
 
     logger.info(f"Starting Job Application OS ({settings.ENVIRONMENT})")
+
+    # Run migrations after server is listening (networking is ready)
+    await _run_migrations()
+
     yield
     logger.info("Shutting down Job Application OS")
 
