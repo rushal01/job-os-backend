@@ -15,6 +15,8 @@ def verify_jwt(token: str) -> dict:
 
     Extracts the 'sub' claim as supabase_uid.
     """
+    from loguru import logger
+
     try:
         payload = jwt.decode(
             token,
@@ -30,6 +32,7 @@ def verify_jwt(token: str) -> dict:
         return payload
     except JWTError as e:
         error_message = str(e).lower()
+        logger.warning("JWT verification failed: {}", error_message)
         if "expired" in error_message:
             raise AppError(
                 code=ErrorCode.AUTH_TOKEN_EXPIRED,
