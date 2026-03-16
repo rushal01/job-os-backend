@@ -37,8 +37,8 @@ class TestBYOKEncryption:
 
     def test_per_user_key_isolation(self) -> None:
         """Decrypting with wrong user_id should fail."""
-        from app.core.security import decrypt_api_key, encrypt_api_key
         from app.core.exceptions import AppError
+        from app.core.security import decrypt_api_key, encrypt_api_key
 
         user_a = uuid.uuid4()
         user_b = uuid.uuid4()
@@ -52,8 +52,8 @@ class TestBYOKEncryption:
 
     def test_tamper_detection(self) -> None:
         """Modifying ciphertext should be detected."""
-        from app.core.security import decrypt_api_key, encrypt_api_key
         from app.core.exceptions import AppError
+        from app.core.security import decrypt_api_key, encrypt_api_key
 
         user_id = uuid.uuid4()
         plaintext = "sk-tamper-test-key"
@@ -71,8 +71,8 @@ class TestBYOKEncryption:
 
     def test_tamper_detection_on_tag(self) -> None:
         """Modifying tag should be detected."""
-        from app.core.security import decrypt_api_key, encrypt_api_key
         from app.core.exceptions import AppError
+        from app.core.security import decrypt_api_key, encrypt_api_key
 
         user_id = uuid.uuid4()
         plaintext = "sk-tag-tamper-key"

@@ -1,5 +1,3 @@
-import uuid
-from collections.abc import AsyncGenerator
 
 from fastapi import Depends, Header
 from sqlalchemy import select

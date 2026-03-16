@@ -2,12 +2,12 @@ from fastapi import APIRouter
 
 from app.api.v1.admin import router as admin_router
 from app.api.v1.ai import router as ai_router
-from app.api.v1.education import router as education_router
 from app.api.v1.analytics import router as analytics_router
 from app.api.v1.applications import router as applications_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.content import router as content_router
 from app.api.v1.copilot import router as copilot_router
+from app.api.v1.education import router as education_router
 from app.api.v1.email import router as email_router
 from app.api.v1.files import router as files_router
 from app.api.v1.health import router as health_router

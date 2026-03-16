@@ -6,7 +6,7 @@ Defines request/response models for super admin endpoints.
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class AdminUser(BaseModel):

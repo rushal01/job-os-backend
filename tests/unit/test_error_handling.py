@@ -2,9 +2,9 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.core.exceptions import (
+    ERROR_CODE_TO_HTTP_STATUS,
     AppError,
     ErrorCode,
-    ERROR_CODE_TO_HTTP_STATUS,
     build_error_envelope,
 )
 from app.main import app

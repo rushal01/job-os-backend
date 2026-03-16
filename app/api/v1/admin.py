@@ -15,8 +15,8 @@ from app.models.user import User
 from app.schemas.admin import (
     AdminUser,
     AdminUserDetail,
-    FeatureFlagUpdate,
     FeatureFlags,
+    FeatureFlagUpdate,
     RoleUpdate,
     SuspendRequest,
     SystemHealth,

@@ -1,25 +1,22 @@
 import asyncio
 import uuid
 from collections.abc import AsyncGenerator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from jose import jwt
-from sqlalchemy import JSON, StaticPool, Text, event
+from sqlalchemy import JSON, StaticPool, event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import settings
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
-from app.models.user import User, UserRole
-from app.models.profile import Profile
-from app.models.education import Education
 from app.models.job import Job
-from app.models.skill import Skill
-from app.models.work_experience import WorkExperience
+from app.models.profile import Profile
+from app.models.user import User, UserRole
 
 # Use in-memory SQLite for tests
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -29,6 +26,7 @@ TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 # ---------------------------------------------------------------------------
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 
+
 @event.listens_for(Base.metadata, "column_reflect")
 def _remap_pg_types(inspector, table, column_info):
     if isinstance(column_info["type"], (JSONB,)):
@@ -36,6 +34,7 @@ def _remap_pg_types(inspector, table, column_info):
 
 # Compile-time overrides so CREATE TABLE works with SQLite
 from sqlalchemy.ext.compiler import compiles
+
 
 @compiles(JSONB, "sqlite")
 def _compile_jsonb_sqlite(element, compiler, **kw):
@@ -99,8 +98,8 @@ def _make_jwt(supabase_uid: str) -> str:
         {
             "sub": supabase_uid,
             "aud": "authenticated",
-            "exp": int(datetime.now(timezone.utc).timestamp()) + 3600,
-            "iat": int(datetime.now(timezone.utc).timestamp()),
+            "exp": int(datetime.now(UTC).timestamp()) + 3600,
+            "iat": int(datetime.now(UTC).timestamp()),
             "role": "authenticated",
         },
         settings.SUPABASE_JWT_SECRET,
