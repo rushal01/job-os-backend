@@ -12,7 +12,7 @@ class APIKey(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "api_keys"
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     provider: Mapped[str] = mapped_column(
         String(20), nullable=False

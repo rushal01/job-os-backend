@@ -45,7 +45,7 @@ def upgrade() -> None:
     op.create_table(
         "profiles",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
         sa.Column("name", sa.String(255), nullable=False),
         sa.Column("target_role", sa.String(255), nullable=False),
         sa.Column("target_seniority", sa.String(100), nullable=True),
@@ -88,7 +88,7 @@ def upgrade() -> None:
     op.create_table(
         "skills",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
         sa.Column("name", sa.String(200), nullable=False),
         sa.Column("category", sa.String(50), nullable=False),
         sa.Column("proficiency", sa.Integer, nullable=False),
@@ -106,7 +106,7 @@ def upgrade() -> None:
     op.create_table(
         "work_experience",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
         sa.Column("company", sa.String(255), nullable=False),
         sa.Column("title", sa.String(255), nullable=False),
         sa.Column("start_date", sa.String(20), nullable=False),
@@ -126,7 +126,7 @@ def upgrade() -> None:
     op.create_table(
         "education",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
         sa.Column("institution", sa.String(255), nullable=False),
         sa.Column("degree", sa.String(255), nullable=True),
         sa.Column("field", sa.String(255), nullable=True),
@@ -159,8 +159,8 @@ def upgrade() -> None:
     op.create_table(
         "jobs",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
-        sa.Column("profile_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("profiles.id"), nullable=False),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("profile_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False),
         sa.Column("title", sa.String(500), nullable=False),
         sa.Column("company", sa.String(255), nullable=False),
         sa.Column("location", sa.String(255), nullable=True),
@@ -202,8 +202,8 @@ def upgrade() -> None:
     op.create_table(
         "job_sources",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("job_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("jobs.id"), nullable=False),
-        sa.Column("raw_job_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("raw_jobs.id"), nullable=False),
+        sa.Column("job_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("raw_job_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("raw_jobs.id", ondelete="CASCADE"), nullable=False),
         sa.Column("source", sa.String(100), nullable=False),
         sa.Column("scraped_at", sa.DateTime(timezone=True), nullable=False),
     )
@@ -212,9 +212,9 @@ def upgrade() -> None:
     op.create_table(
         "applications",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("job_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("jobs.id"), nullable=False),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
-        sa.Column("profile_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("profiles.id"), nullable=False),
+        sa.Column("job_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("profile_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False),
         sa.Column("status", sa.String(30), nullable=False, server_default="pending"),
         sa.Column("submitted_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("submission_method", sa.String(50), nullable=True),
@@ -232,10 +232,10 @@ def upgrade() -> None:
     op.create_table(
         "documents",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("job_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("jobs.id"), nullable=True),
-        sa.Column("application_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("applications.id"), nullable=True),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
-        sa.Column("profile_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("profiles.id"), nullable=True),
+        sa.Column("job_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True),
+        sa.Column("application_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("applications.id", ondelete="SET NULL"), nullable=True),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("profile_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True),
         sa.Column("type", sa.String(50), nullable=False),
         sa.Column("filename", sa.String(500), nullable=False),
         sa.Column("r2_key", sa.String(1000), nullable=False),
@@ -254,10 +254,10 @@ def upgrade() -> None:
     op.create_table(
         "review_queue",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
         sa.Column("item_type", sa.String(30), nullable=False),
         sa.Column("item_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("job_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("jobs.id"), nullable=True),
+        sa.Column("job_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True),
         sa.Column("priority", sa.Integer, nullable=False, server_default="3"),
         sa.Column("status", sa.String(20), nullable=False, server_default="pending"),
         sa.Column("reject_reason", sa.String(255), nullable=True),
@@ -270,8 +270,8 @@ def upgrade() -> None:
     op.create_table(
         "outreach_contacts",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
-        sa.Column("job_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("jobs.id"), nullable=True),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("job_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True),
         sa.Column("name", sa.String(255), nullable=False),
         sa.Column("title", sa.String(255), nullable=True),
         sa.Column("company", sa.String(255), nullable=True),
@@ -291,7 +291,7 @@ def upgrade() -> None:
     op.create_table(
         "outreach_messages",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("contact_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("outreach_contacts.id"), nullable=False),
+        sa.Column("contact_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("outreach_contacts.id", ondelete="CASCADE"), nullable=False),
         sa.Column("content", sa.Text, nullable=False),
         sa.Column("channel", sa.String(50), nullable=False),
         sa.Column("status", sa.String(20), nullable=False, server_default="draft"),
@@ -308,8 +308,8 @@ def upgrade() -> None:
     op.create_table(
         "interviews",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("application_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("applications.id"), nullable=False),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("application_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("applications.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
         sa.Column("round_type", sa.String(50), nullable=False),
         sa.Column("scheduled_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("platform", sa.String(50), nullable=True),
@@ -332,7 +332,7 @@ def upgrade() -> None:
     op.create_table(
         "notifications",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
         sa.Column("type", sa.String(50), nullable=False),
         sa.Column("priority", sa.String(10), nullable=False, server_default="medium"),
         sa.Column("title", sa.String(500), nullable=False),
@@ -349,7 +349,7 @@ def upgrade() -> None:
     op.create_table(
         "activity_log",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
         sa.Column("action", sa.String(100), nullable=False),
         sa.Column("actor", sa.String(20), nullable=False, server_default="system"),
         sa.Column("entity_type", sa.String(50), nullable=True),
@@ -365,7 +365,7 @@ def upgrade() -> None:
     op.create_table(
         "tasks",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
         sa.Column("task_name", sa.String(100), nullable=False),
         sa.Column("celery_task_id", sa.String(255), nullable=True),
         sa.Column("status", sa.String(20), nullable=False, server_default="pending"),
@@ -393,7 +393,7 @@ def upgrade() -> None:
     op.create_table(
         "api_keys",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
         sa.Column("provider", sa.String(20), nullable=False),
         sa.Column("encrypted_key", sa.LargeBinary, nullable=False),
         sa.Column("key_nonce", sa.LargeBinary, nullable=False),
@@ -409,7 +409,7 @@ def upgrade() -> None:
     op.create_table(
         "copilot_conversations",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
         sa.Column("messages", postgresql.JSONB, nullable=False, server_default="[]"),
         sa.Column("context", postgresql.JSONB, nullable=True),
         sa.Column("model_used", sa.String(100), nullable=True),

@@ -11,7 +11,7 @@ class Notification(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "notifications"
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     type: Mapped[str] = mapped_column(String(50), nullable=False)
     priority: Mapped[str] = mapped_column(

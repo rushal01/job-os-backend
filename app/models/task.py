@@ -11,7 +11,7 @@ class Task(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "tasks"
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     task_name: Mapped[str] = mapped_column(String(100), nullable=False)
     celery_task_id: Mapped[str | None] = mapped_column(String(255), nullable=True)

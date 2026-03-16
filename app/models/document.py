@@ -11,16 +11,16 @@ class Document(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "documents"
 
     job_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("jobs.id"), nullable=True
+        UUID(as_uuid=True), ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True
     )
     application_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("applications.id"), nullable=True
+        UUID(as_uuid=True), ForeignKey("applications.id", ondelete="SET NULL"), nullable=True
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     profile_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("profiles.id"), nullable=True
+        UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True
     )
     type: Mapped[str] = mapped_column(
         String(50), nullable=False

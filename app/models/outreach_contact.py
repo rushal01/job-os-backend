@@ -11,10 +11,10 @@ class OutreachContact(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin
     __tablename__ = "outreach_contacts"
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     job_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("jobs.id"), nullable=True
+        UUID(as_uuid=True), ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     title: Mapped[str | None] = mapped_column(String(255), nullable=True)

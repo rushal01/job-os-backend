@@ -11,10 +11,10 @@ class Job(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "jobs"
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     profile_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("profiles.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False
     )
 
     # Core fields

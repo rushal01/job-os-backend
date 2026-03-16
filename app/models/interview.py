@@ -12,10 +12,10 @@ class Interview(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "interviews"
 
     application_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("applications.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("applications.id", ondelete="CASCADE"), nullable=False
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     round_type: Mapped[str] = mapped_column(
         String(50), nullable=False

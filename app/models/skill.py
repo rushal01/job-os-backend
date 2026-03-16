@@ -11,7 +11,7 @@ class Skill(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "skills"
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     category: Mapped[str] = mapped_column(

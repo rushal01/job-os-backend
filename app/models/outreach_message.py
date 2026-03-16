@@ -12,7 +12,7 @@ class OutreachMessage(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "outreach_messages"
 
     contact_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("outreach_contacts.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("outreach_contacts.id", ondelete="CASCADE"), nullable=False
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
     channel: Mapped[str] = mapped_column(String(50), nullable=False)

@@ -6,7 +6,7 @@ Defines request/response models for application tracking and submission.
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ApplicationResponse(BaseModel):
@@ -33,10 +33,23 @@ class ApplicationCreate(BaseModel):
     profile_id: uuid.UUID
 
 
+_VALID_APP_STATUSES = {
+    "pending", "submitted", "screening", "interview",
+    "offer", "rejected", "withdrawn",
+}
+
+
 class ApplicationStatusUpdate(BaseModel):
     """PUT /applications/:id/status request body."""
 
     status: str
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        if v not in _VALID_APP_STATUSES:
+            raise ValueError(f"Invalid status. Must be one of: {sorted(_VALID_APP_STATUSES)}")
+        return v
 
 
 class MarkAppliedRequest(BaseModel):

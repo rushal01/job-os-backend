@@ -11,7 +11,7 @@ class ActivityLog(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "activity_log"
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     action: Mapped[str] = mapped_column(String(100), nullable=False)
     actor: Mapped[str] = mapped_column(

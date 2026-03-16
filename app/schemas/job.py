@@ -6,7 +6,7 @@ Defines request/response models for job listing, creation, scoring, and filterin
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ScoreBreakdown(BaseModel):
@@ -71,10 +71,23 @@ class JobCreate(BaseModel):
     salary_currency: str | None = None
 
 
+_VALID_JOB_STATUSES = {
+    "new", "scored", "content_ready", "applied", "interview",
+    "offer", "rejected", "skipped", "bookmarked", "ghosted",
+}
+
+
 class JobStatusUpdate(BaseModel):
     """PUT /jobs/:id/status request body."""
 
     status: str
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        if v not in _VALID_JOB_STATUSES:
+            raise ValueError(f"Invalid status. Must be one of: {sorted(_VALID_JOB_STATUSES)}")
+        return v
 
 
 class JobFilters(BaseModel):
