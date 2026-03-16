@@ -5,17 +5,23 @@ Run: python -m scripts.seed
 
 import asyncio
 import uuid
+from datetime import UTC
 
 from faker import Faker
 
 from app.db.session import async_session
-from app.models.user import User, UserRole
-from app.models.profile import Profile
-from app.models.skill import Skill
-from app.models.work_experience import WorkExperience
+from app.models.activity_log import ActivityLog
+from app.models.application import Application
 from app.models.education import Education
 from app.models.job import Job
 from app.models.notification import Notification
+from app.models.outreach_contact import OutreachContact
+from app.models.outreach_message import OutreachMessage
+from app.models.profile import Profile
+from app.models.review_queue import ReviewQueue
+from app.models.skill import Skill
+from app.models.user import User, UserRole
+from app.models.work_experience import WorkExperience
 
 fake = Faker()
 
@@ -51,9 +57,10 @@ async def seed() -> None:
                 name=f"{role} Search",
                 target_role=role,
                 target_seniority="Senior (6-10 YOE)",
-                years_of_experience=fake.random_int(5, 10),
+                years_of_experience=float(fake.random_int(5, 10)),
                 salary_min=fake.random_int(150000, 200000),
                 salary_max=fake.random_int(200000, 300000),
+                salary_currency="USD",
                 completeness_pct=fake.random_int(60, 95),
             )
             profiles.append(p)
@@ -109,8 +116,9 @@ async def seed() -> None:
             "Databricks", "Figma", "Vercel", "Supabase", "Linear",
             "Anthropic", "OpenAI", "Datadog", "Cloudflare",
         ]
+        jobs_list = []
         for _ in range(100):
-            session.add(Job(
+            j = Job(
                 id=uuid.uuid4(),
                 user_id=user.id,
                 profile_id=profiles[0].id,
@@ -126,6 +134,68 @@ async def seed() -> None:
                 salary_min=fake.random_int(150000, 200000),
                 salary_max=fake.random_int(200000, 350000),
                 salary_currency="USD",
+            )
+            jobs_list.append(j)
+        session.add_all(jobs_list)
+        await session.flush()
+
+        # ─── Applications (20) ───
+        for i in range(20):
+            job = jobs_list[i]
+            session.add(Application(
+                id=uuid.uuid4(),
+                job_id=job.id,
+                user_id=user.id,
+                profile_id=profiles[0].id,
+                status=fake.random_element(["pending", "submitted", "screening", "interview", "rejected"]),
+                submitted_at=(
+                    fake.date_time_between(start_date="-30d", end_date="now", tzinfo=UTC)
+                    if fake.boolean() else None
+                ),
+                submission_method=fake.random_element(["auto", "manual", "easy_apply"]),
+                notes=fake.paragraph(nb_sentences=2) if fake.boolean() else None,
+            ))
+
+        # ─── Review Queue Items (15) ───
+        for i in range(15):
+            session.add(ReviewQueue(
+                id=uuid.uuid4(),
+                user_id=user.id,
+                item_type=fake.random_element(["resume", "cover_letter", "outreach"]),
+                item_id=uuid.uuid4(),
+                job_id=jobs_list[i].id,
+                priority=fake.random_element([1, 2, 3]),
+                status=fake.random_element(["pending", "approved", "rejected"]),
+            ))
+
+        # ─── Outreach Contacts (10) + Messages (20) ───
+        contacts = []
+        for i in range(10):
+            c = OutreachContact(
+                id=uuid.uuid4(),
+                user_id=user.id,
+                job_id=jobs_list[i].id,
+                name=fake.name(),
+                title=fake.job(),
+                company=fake.company(),
+                email=fake.email(),
+                channel=fake.random_element(["email", "linkedin_dm", "linkedin_inmail"]),
+                warmth=fake.random_element(["cold", "warm", "hot"]),
+                status=fake.random_element(["draft", "sent", "replied"]),
+            )
+            contacts.append(c)
+        session.add_all(contacts)
+        await session.flush()
+
+        for _ in range(20):
+            session.add(OutreachMessage(
+                id=uuid.uuid4(),
+                contact_id=contacts[fake.random_int(0, len(contacts) - 1)].id,
+                content=fake.paragraph(nb_sentences=3),
+                channel=fake.random_element(["email", "linkedin_dm"]),
+                status=fake.random_element(["draft", "sent", "opened", "replied"]),
+                is_follow_up=fake.boolean(chance_of_getting_true=30),
+                follow_up_number=fake.random_int(0, 3),
             ))
 
         # ─── Notifications (30) ───
@@ -144,9 +214,28 @@ async def seed() -> None:
                 read=fake.boolean(chance_of_getting_true=40),
             ))
 
+        # ─── Activity Log (50) ───
+        actions = [
+            "job_scored", "content_generated", "application_submitted",
+            "profile_updated", "discovery_completed", "review_approved",
+        ]
+        for _ in range(50):
+            session.add(ActivityLog(
+                id=uuid.uuid4(),
+                user_id=user.id,
+                action=fake.random_element(actions),
+                actor=fake.random_element(["system", "user", "ai"]),
+                entity_type=fake.random_element(["job", "application", "document"]),
+                entity_id=uuid.uuid4(),
+            ))
+
         await session.commit()
         from loguru import logger
-        logger.info("Seed complete: 2 users, 3 profiles, 20 skills, 100 jobs, 30 notifications")
+        logger.info(
+            "Seed complete: 2 users, 3 profiles, 20 skills, 3 experience, "
+            "1 education, 100 jobs, 20 applications, 15 review items, "
+            "10 contacts, 20 messages, 30 notifications, 50 activity logs"
+        )
 
 
 if __name__ == "__main__":

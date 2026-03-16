@@ -18,12 +18,101 @@ from app.core.logging import setup_logging
 from app.core.middleware import RequestLoggingMiddleware
 
 
+async def _run_migrations() -> None:
+    """Run Alembic migrations using the app's async engine."""
+    from loguru import logger
+
+    try:
+        # If old migration revisions exist, reset alembic_version so the
+        # consolidated migration can run fresh on a clean DB.
+        from sqlalchemy import text
+
+        from app.db.session import async_session
+
+        async with async_session() as session:
+            try:
+                result = await session.execute(
+                    text("SELECT version_num FROM alembic_version LIMIT 1")
+                )
+                row = result.first()
+                if row and row[0] in ("7a6fae2d4ef3", "a1b2c3d4e5f6"):
+                    logger.info(f"Resetting stale alembic_version ({row[0]}) for consolidated migration")
+                    await session.execute(text("DROP TABLE IF EXISTS alembic_version CASCADE"))
+                    # Drop all old tables so migration can recreate them cleanly
+                    for table in [
+                        "copilot_conversations", "api_keys", "failed_tasks", "tasks",
+                        "activity_log", "notifications", "interviews", "outreach_messages",
+                        "outreach_contacts", "review_queue", "documents", "applications",
+                        "job_sources", "jobs", "raw_jobs", "education", "work_experience",
+                        "skills", "profiles", "users",
+                    ]:
+                        await session.execute(text(f"DROP TABLE IF EXISTS {table} CASCADE"))
+                    await session.execute(text("DROP TYPE IF EXISTS userrole"))
+                    await session.commit()
+            except Exception:
+                await session.rollback()
+
+        from alembic import command
+        from alembic.config import Config
+
+        alembic_cfg = Config("alembic.ini")
+        alembic_cfg.set_main_option("sqlalchemy.url", settings.SUPABASE_DB_URL)
+
+        import asyncio
+
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, command.upgrade, alembic_cfg, "head")
+        logger.info("Database migrations applied successfully")
+    except Exception as exc:
+        logger.warning(f"Database migrations failed (will retry on next restart): {exc}")
+
+
+async def _run_seeds() -> None:
+    """Run database seed script if SEED_ON_STARTUP=true and tables are empty."""
+    from loguru import logger
+
+    try:
+        from sqlalchemy import func, select
+
+        from app.db.session import async_session
+        from app.models.user import User
+
+        async with async_session() as session:
+            result = await session.execute(select(func.count()).select_from(User))
+            count = result.scalar_one()
+            if count > 0:
+                logger.info(f"Skipping seed — {count} users already exist")
+                return
+
+        from scripts.seed import seed
+
+        await seed()
+        logger.info("Database seeded successfully")
+    except Exception as exc:
+        logger.warning(f"Database seeding failed: {exc}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     setup_logging()
     from loguru import logger
 
     logger.info(f"Starting Job Application OS ({settings.ENVIRONMENT})")
+
+    # Force IPv4 for Supabase connections (Render has IPv4-only networking)
+    import asyncio
+
+    from app.db.session import _patch_loop_for_ipv4
+
+    _patch_loop_for_ipv4(asyncio.get_running_loop())
+
+    # Run migrations after server is listening (networking is ready)
+    await _run_migrations()
+
+    # Optionally seed the database (set SEED_ON_STARTUP=true in env)
+    if settings.SEED_ON_STARTUP:
+        await _run_seeds()
+
     yield
     logger.info("Shutting down Job Application OS")
 
@@ -85,6 +174,11 @@ def create_app() -> FastAPI:
 
     # --- Routers ---
     application.include_router(api_v1_router)
+
+    # Root-level health check for Render / load balancer probes
+    @application.get("/health")
+    async def root_health_check() -> dict:
+        return {"status": "ok"}
 
     return application
 

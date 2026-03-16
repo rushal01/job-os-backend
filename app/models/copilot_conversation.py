@@ -11,7 +11,7 @@ class CopilotConversation(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "copilot_conversations"
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     messages: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)  # type: ignore[assignment]
     context: Mapped[dict | None] = mapped_column(JSONB, nullable=True)

@@ -12,10 +12,10 @@ class JobSource(Base, UUIDPrimaryKeyMixin):
     __tablename__ = "job_sources"
 
     job_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("jobs.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False
     )
     raw_job_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("raw_jobs.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("raw_jobs.id", ondelete="CASCADE"), nullable=False
     )
     source: Mapped[str] = mapped_column(String(100), nullable=False)
     scraped_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

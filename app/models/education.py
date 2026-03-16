@@ -11,7 +11,7 @@ class Education(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "education"
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     institution: Mapped[str] = mapped_column(String(255), nullable=False)
     degree: Mapped[str | None] = mapped_column(String(255), nullable=True)

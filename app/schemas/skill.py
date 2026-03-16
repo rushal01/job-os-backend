@@ -3,7 +3,12 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+_VALID_CATEGORIES = {
+    "language", "framework", "database", "cloud", "devops",
+    "tool", "methodology", "soft_skill", "other",
+}
 
 
 class SkillCreate(BaseModel):
@@ -11,6 +16,13 @@ class SkillCreate(BaseModel):
 
     name: str = Field(..., max_length=200)
     category: str = Field(..., max_length=50)
+
+    @field_validator("category")
+    @classmethod
+    def validate_category(cls, v: str) -> str:
+        if v not in _VALID_CATEGORIES:
+            raise ValueError(f"Invalid category. Must be one of: {sorted(_VALID_CATEGORIES)}")
+        return v
     proficiency: int = Field(..., ge=1, le=5)
     years_used: float | None = None
     last_used_date: str | None = None

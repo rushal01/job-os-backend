@@ -1,10 +1,10 @@
 import asyncio
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+from alembic import context
 from app.config import settings
 from app.db.base import Base
 
@@ -40,8 +40,11 @@ def do_run_migrations(connection):  # type: ignore[no-untyped-def]
 
 
 async def run_async_migrations() -> None:
+    configuration = config.get_section(config.config_ini_section, {})
+    # Ensure the URL from settings (with asyncpg fix) is used
+    configuration["sqlalchemy.url"] = settings.SUPABASE_DB_URL
     connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )

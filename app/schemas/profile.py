@@ -3,13 +3,31 @@
 Defines request/response models for profile CRUD, cloning, and completeness.
 """
 
+import typing
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
-class ProfileCreate(BaseModel):
+class _SalaryValidator:
+    @model_validator(mode="after")
+    def salary_range_check(self) -> typing.Self:
+        if self.salary_min is not None and self.salary_max is not None and self.salary_min > self.salary_max:
+            raise ValueError("salary_min must be <= salary_max")
+        return self
+
+
+class _URLValidator:
+    @field_validator("linkedin_url", "github_url", "portfolio_url", mode="before")
+    @classmethod
+    def validate_urls(cls, v: str | None) -> str | None:
+        if v is not None and not v.startswith("https://"):
+            raise ValueError("URL must start with https://")
+        return v
+
+
+class ProfileCreate(_SalaryValidator, _URLValidator, BaseModel):
     """Create a new profile. Required: name, target_role."""
 
     name: str = Field(..., max_length=255)
@@ -18,10 +36,10 @@ class ProfileCreate(BaseModel):
     target_employment_types: list[str] | None = None
     target_locations: list[str] | None = None
     negative_locations: list[str] | None = None
-    salary_min: int | None = None
-    salary_max: int | None = None
+    salary_min: int | None = Field(default=None, ge=0)
+    salary_max: int | None = Field(default=None, ge=0)
     salary_currency: str | None = None
-    years_of_experience: float | None = None
+    years_of_experience: float | None = Field(default=None, ge=0)
     current_title: str | None = None
     linkedin_url: str | None = None
     github_url: str | None = None
@@ -43,7 +61,7 @@ class ProfileCreate(BaseModel):
     blacklist: list[str] | None = None
 
 
-class ProfileUpdate(BaseModel):
+class ProfileUpdate(_SalaryValidator, _URLValidator, BaseModel):
     """Update an existing profile. All fields optional."""
 
     name: str | None = None
@@ -52,10 +70,10 @@ class ProfileUpdate(BaseModel):
     target_employment_types: list[str] | None = None
     target_locations: list[str] | None = None
     negative_locations: list[str] | None = None
-    salary_min: int | None = None
-    salary_max: int | None = None
+    salary_min: int | None = Field(default=None, ge=0)
+    salary_max: int | None = Field(default=None, ge=0)
     salary_currency: str | None = None
-    years_of_experience: float | None = None
+    years_of_experience: float | None = Field(default=None, ge=0)
     current_title: str | None = None
     is_active: bool | None = None
     linkedin_url: str | None = None

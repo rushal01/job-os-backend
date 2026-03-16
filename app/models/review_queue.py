@@ -11,14 +11,14 @@ class ReviewQueue(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "review_queue"
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     item_type: Mapped[str] = mapped_column(
         String(30), nullable=False
     )  # resume, cover_letter, outreach, answer, email
     item_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     job_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("jobs.id"), nullable=True
+        UUID(as_uuid=True), ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True
     )
     priority: Mapped[int] = mapped_column(
         Integer, default=3, nullable=False
