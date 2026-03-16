@@ -15,6 +15,7 @@ from app.schemas.auth import (
     SignupRequest,
     UserResponse,
     UserSchema,
+    UserUpdateRequest,
 )
 from app.schemas.common import SuccessResponse
 from app.services import auth_service
@@ -103,6 +104,42 @@ async def refresh(
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     """Return the currently authenticated user."""
+    return UserResponse(user=UserSchema.model_validate(current_user))
+
+
+@router.put("/me", response_model=UserResponse)
+async def update_me(
+    body: UserUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update the currently authenticated user's profile/settings."""
+    update_data = body.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(current_user, field, value)
+    await db.commit()
+    await db.refresh(current_user)
+    return UserResponse(user=UserSchema.model_validate(current_user))
+
+
+@router.get("/settings", response_model=UserResponse)
+async def get_settings(current_user: User = Depends(get_current_user)):
+    """Return user settings (alias for /me)."""
+    return UserResponse(user=UserSchema.model_validate(current_user))
+
+
+@router.put("/settings", response_model=UserResponse)
+async def update_settings(
+    body: UserUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update user settings."""
+    update_data = body.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(current_user, field, value)
+    await db.commit()
+    await db.refresh(current_user)
     return UserResponse(user=UserSchema.model_validate(current_user))
 
 

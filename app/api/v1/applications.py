@@ -6,10 +6,13 @@
 import uuid
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.exceptions import AppError, ErrorCode
 from app.db.session import get_db
+from app.models.application import Application
 from app.models.user import User
 from app.schemas.application import (
     ApplicationResponse,
@@ -31,7 +34,21 @@ async def list_applications(
     db: AsyncSession = Depends(get_db),
 ) -> PaginatedResponse[ApplicationResponse]:
     """List applications with cursor pagination."""
-    raise NotImplementedError
+    query = select(Application).where(
+        Application.user_id == current_user.id,
+        Application.is_deleted == False,  # noqa: E712
+    ).order_by(Application.updated_at.desc()).limit(limit)
+
+    if status:
+        query = query.where(Application.status == status)
+
+    if profile_id:
+        query = query.where(Application.profile_id == profile_id)
+
+    result = await db.execute(query)
+    items = result.scalars().all()
+
+    return {"data": items, "next_cursor": None, "has_more": False}
 
 
 @router.get("/{application_id}", response_model=DataResponse[ApplicationResponse])
@@ -41,7 +58,17 @@ async def get_application(
     db: AsyncSession = Depends(get_db),
 ) -> DataResponse[ApplicationResponse]:
     """Get a single application by ID."""
-    raise NotImplementedError
+    result = await db.execute(
+        select(Application).where(
+            Application.id == application_id,
+            Application.user_id == current_user.id,
+            Application.is_deleted == False,  # noqa: E712
+        )
+    )
+    app = result.scalar_one_or_none()
+    if not app:
+        raise AppError(code=ErrorCode.RESOURCE_NOT_FOUND, message="Application not found")
+    return {"data": app}
 
 
 @router.post("/{application_id}/submit", response_model=TaskResponse)
@@ -62,7 +89,28 @@ async def mark_applied(
     db: AsyncSession = Depends(get_db),
 ) -> DataResponse[ApplicationResponse]:
     """Manually mark an application as applied."""
-    raise NotImplementedError
+    from datetime import datetime, timezone
+
+    result = await db.execute(
+        select(Application).where(
+            Application.id == application_id,
+            Application.user_id == current_user.id,
+            Application.is_deleted == False,  # noqa: E712
+        )
+    )
+    app = result.scalar_one_or_none()
+    if not app:
+        raise AppError(code=ErrorCode.RESOURCE_NOT_FOUND, message="Application not found")
+
+    app.status = "submitted"
+    app.submission_method = body.method
+    app.submitted_at = datetime.now(timezone.utc)
+    if body.notes:
+        app.notes = body.notes
+
+    await db.commit()
+    await db.refresh(app)
+    return {"data": app}
 
 
 @router.put("/{application_id}/status", response_model=DataResponse[ApplicationResponse])
@@ -73,7 +121,21 @@ async def update_application_status(
     db: AsyncSession = Depends(get_db),
 ) -> DataResponse[ApplicationResponse]:
     """Update application status."""
-    raise NotImplementedError
+    result = await db.execute(
+        select(Application).where(
+            Application.id == application_id,
+            Application.user_id == current_user.id,
+            Application.is_deleted == False,  # noqa: E712
+        )
+    )
+    app = result.scalar_one_or_none()
+    if not app:
+        raise AppError(code=ErrorCode.RESOURCE_NOT_FOUND, message="Application not found")
+
+    app.status = body.status
+    await db.commit()
+    await db.refresh(app)
+    return {"data": app}
 
 
 @router.post("/{application_id}/undo", response_model=DataResponse[ApplicationResponse])

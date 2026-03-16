@@ -68,3 +68,11 @@ class SessionResponse(BaseModel):
 
 class UserResponse(BaseModel):
     user: UserSchema
+
+
+class UserUpdateRequest(BaseModel):
+    full_name: str | None = None
+    timezone: str | None = None
+    avatar_url: str | None = None
+    has_completed_onboarding: bool | None = None
+    settings: dict | None = None
