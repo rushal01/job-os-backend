@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.admin import router as admin_router
+from app.api.v1.settings import router as settings_router
 from app.api.v1.ai import router as ai_router
 from app.api.v1.analytics import router as analytics_router
 from app.api.v1.applications import router as applications_router
@@ -43,3 +44,4 @@ api_v1_router.include_router(skills_router, tags=["skills"])
 api_v1_router.include_router(work_experience_router, tags=["work-experience"])
 api_v1_router.include_router(education_router, tags=["education"])
 api_v1_router.include_router(admin_router, tags=["admin"])
+api_v1_router.include_router(settings_router, tags=["settings"])

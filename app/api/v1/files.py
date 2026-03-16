@@ -18,6 +18,7 @@ from app.schemas.file import (
     PresignUploadRequest,
     PresignUploadResponse,
 )
+from app.services import file_service
 
 router = APIRouter(prefix="/files")
 
@@ -27,9 +28,12 @@ async def presign_upload(
     body: PresignUploadRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> PresignUploadResponse:
+) -> dict:
     """Generate a presigned URL for file upload to R2."""
-    raise NotImplementedError
+    result = await file_service.presign_upload(
+        current_user.id, body.filename, body.content_type, body.job_id
+    )
+    return result
 
 
 @router.post("/confirm-upload", response_model=DataResponse[dict])
@@ -37,9 +41,13 @@ async def confirm_upload(
     body: ConfirmUploadRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> DataResponse[dict]:
+) -> dict:
     """Confirm a completed file upload and create a Document record."""
-    raise NotImplementedError
+    doc = await file_service.confirm_upload(
+        db, current_user.id, body.file_key, body.filename,
+        body.size, body.content_type, body.job_id,
+    )
+    return {"data": {"id": str(doc.id), "filename": doc.filename, "file_size": doc.file_size}}
 
 
 @router.get("/{file_id}/download-url", response_model=DownloadUrlResponse)
@@ -47,9 +55,10 @@ async def get_download_url(
     file_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> DownloadUrlResponse:
+) -> dict:
     """Get a presigned download URL for a file."""
-    raise NotImplementedError
+    url = await file_service.get_download_url(db, current_user.id, file_id)
+    return {"url": url}
 
 
 @router.get("", response_model=DataResponse[list[dict]])
@@ -58,9 +67,21 @@ async def list_files(
     type: str | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> DataResponse[list[dict]]:
+) -> dict:
     """List files filtered by job and/or type."""
-    raise NotImplementedError
+    docs = await file_service.list_files(db, current_user.id, job_id, type)
+    return {"data": [
+        {
+            "id": str(d.id),
+            "filename": d.filename,
+            "type": d.type,
+            "content_type": d.content_type,
+            "file_size": d.file_size,
+            "job_id": str(d.job_id) if d.job_id else None,
+            "created_at": d.created_at.isoformat() if d.created_at else None,
+        }
+        for d in docs
+    ]}
 
 
 @router.delete("/{file_id}", response_model=SuccessResponse)
@@ -68,6 +89,7 @@ async def delete_file(
     file_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> SuccessResponse:
+) -> dict:
     """Delete a file from R2 and remove the Document record."""
-    raise NotImplementedError
+    await file_service.delete_file(db, current_user.id, file_id)
+    return {"success": True}

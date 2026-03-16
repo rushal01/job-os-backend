@@ -17,6 +17,7 @@ from app.models.job import Job
 from app.models.job_source import JobSource
 from app.models.review_queue import ReviewQueue
 from app.models.user import User
+from app.models.interview import Interview
 from app.schemas.analytics import (
     AICostStats,
     DashboardStats,
@@ -327,6 +328,162 @@ async def get_weekly_report(
     )}
 
 
+@router.get("/goals", response_model=DataResponse[dict])
+async def get_goals(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> DataResponse[dict]:
+    """Get goal tracking data."""
+    now = datetime.now(timezone.utc)
+    week_start = now - timedelta(days=now.weekday())
+    week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    apps_this_week = (await db.execute(
+        select(func.count(Application.id)).where(
+            Application.user_id == current_user.id,
+            Application.is_deleted == False,  # noqa: E712
+            Application.created_at >= week_start,
+        )
+    )).scalar() or 0
+
+    jobs_this_week = (await db.execute(
+        select(func.count(Job.id)).where(
+            Job.user_id == current_user.id,
+            Job.is_deleted == False,  # noqa: E712
+            Job.created_at >= week_start,
+        )
+    )).scalar() or 0
+
+    user_settings = current_user.settings or {}
+    goals = user_settings.get("goals", {})
+    weekly_app_goal = goals.get("weekly_applications", 10)
+    weekly_discovery_goal = goals.get("weekly_discoveries", 50)
+
+    return {"data": {
+        "weekly_applications": {"current": apps_this_week, "target": weekly_app_goal},
+        "weekly_discoveries": {"current": jobs_this_week, "target": weekly_discovery_goal},
+        "response_rate": {"current": 0, "target": goals.get("response_rate", 20)},
+        "interviews": {"current": 0, "target": goals.get("weekly_interviews", 3)},
+    }}
+
+
+@router.get("/ab-tests", response_model=DataResponse[list[dict]])
+async def get_ab_tests(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> DataResponse[list[dict]]:
+    """Get A/B test results for resume/CL variants."""
+    from app.models.document import Document
+
+    # Get documents with variant labels
+    result = await db.execute(
+        select(
+            Document.variant_label,
+            func.count(Document.id),
+            func.avg(Document.quality_score),
+        ).where(
+            Document.user_id == current_user.id,
+            Document.variant_label.isnot(None),
+        ).group_by(Document.variant_label)
+    )
+
+    tests = []
+    for label, count, avg_score in result.all():
+        tests.append({
+            "variant": label,
+            "documents_generated": count,
+            "avg_quality_score": round(float(avg_score or 0), 1),
+        })
+
+    return {"data": tests}
+
+
+@router.get("/skills", response_model=DataResponse[dict])
+async def get_skills_analysis(
+    period: str = Query(default="30d"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> DataResponse[dict]:
+    """Get skills demand analysis from job listings."""
+    start = _period_start(period)
+
+    result = await db.execute(
+        select(Job.skills_required, Job.skills_preferred).where(
+            Job.user_id == current_user.id,
+            Job.is_deleted == False,  # noqa: E712
+            Job.created_at >= start,
+        )
+    )
+
+    required_counts: dict[str, int] = {}
+    preferred_counts: dict[str, int] = {}
+    for row in result.all():
+        for skill in (row[0] or []):
+            s = skill.lower().strip()
+            required_counts[s] = required_counts.get(s, 0) + 1
+        for skill in (row[1] or []):
+            s = skill.lower().strip()
+            preferred_counts[s] = preferred_counts.get(s, 0) + 1
+
+    top_required = sorted(required_counts.items(), key=lambda x: x[1], reverse=True)[:20]
+    top_preferred = sorted(preferred_counts.items(), key=lambda x: x[1], reverse=True)[:20]
+
+    return {"data": {
+        "top_required_skills": [{"skill": s, "count": c} for s, c in top_required],
+        "top_preferred_skills": [{"skill": s, "count": c} for s, c in top_preferred],
+        "total_jobs_analyzed": sum(required_counts.values()) + sum(preferred_counts.values()),
+    }}
+
+
+@router.get("/timing", response_model=DataResponse[dict])
+async def get_timing_analysis(
+    period: str = Query(default="90d"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> DataResponse[dict]:
+    """Get application timing analysis."""
+    start = _period_start(period)
+
+    # Average time from application to response
+    result = await db.execute(
+        select(
+            func.avg(
+                func.extract("epoch", Application.updated_at) -
+                func.extract("epoch", Application.created_at)
+            )
+        ).where(
+            Application.user_id == current_user.id,
+            Application.is_deleted == False,  # noqa: E712
+            Application.status.in_(["screening", "interview", "offer", "rejected"]),
+            Application.created_at >= start,
+        )
+    )
+    avg_response_seconds = result.scalar() or 0
+
+    # Jobs per day of week
+    dow_result = await db.execute(
+        select(
+            func.extract("dow", Job.created_at).label("dow"),
+            func.count(Job.id),
+        ).where(
+            Job.user_id == current_user.id,
+            Job.is_deleted == False,  # noqa: E712
+            Job.created_at >= start,
+        ).group_by("dow")
+    )
+    by_day = {int(row[0]): row[1] for row in dow_result.all()}
+    days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    jobs_by_day = [{
+        "day": days[i], "count": by_day.get(i, 0)
+    } for i in range(7)]
+
+    return {"data": {
+        "avg_response_time_days": round(avg_response_seconds / 86400, 1) if avg_response_seconds else 0,
+        "jobs_by_day_of_week": jobs_by_day,
+        "best_application_day": max(jobs_by_day, key=lambda x: x["count"])["day"] if any(d["count"] for d in jobs_by_day) else "N/A",
+    }}
+
+
 @router.post("/export")
 async def export_analytics(
     body: ExportRequest,
@@ -334,4 +491,9 @@ async def export_analytics(
     db: AsyncSession = Depends(get_db),
 ):
     """Export analytics data as CSV/PDF."""
-    raise NotImplementedError
+    from app.tasks.analytics_tasks import export_data
+
+    result = export_data.delay(
+        str(current_user.id), body.type, body.period, body.format,
+    )
+    return {"task_id": result.id}

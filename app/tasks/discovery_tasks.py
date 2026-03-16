@@ -82,8 +82,19 @@ def discover_jobs(self, user_id: str, profile_id: str) -> dict:
             sources = config.get("sources_enabled", ["mock"])
             keywords = config.get("keywords", [profile.target_role])
 
-            # Mock scraping — in Sprint 4, this will use Playwright
-            raw_results = _mock_scrape(sources, keywords)
+            location = config.get("location")
+
+            # Use real scrapers; fall back to mock for testing
+            if sources == ["mock"]:
+                raw_results = _mock_scrape(sources, keywords)
+            else:
+                from app.services.scraper_service import scrape_sources as _scrape
+                raw_results = await _scrape(
+                    sources=sources,
+                    keywords=keywords,
+                    location=location,
+                    config=config,
+                )
 
             created_jobs = 0
             total_raw = len(raw_results)

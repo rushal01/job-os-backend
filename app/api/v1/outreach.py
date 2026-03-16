@@ -27,6 +27,79 @@ from app.schemas.outreach import (
 router = APIRouter(prefix="/outreach")
 
 
+@router.get("/stats", response_model=DataResponse[dict])
+async def get_outreach_stats(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> DataResponse[dict]:
+    """Get outreach statistics."""
+    from sqlalchemy import func
+
+    total = (await db.execute(
+        select(func.count(OutreachContact.id)).where(
+            OutreachContact.user_id == current_user.id,
+            OutreachContact.is_deleted == False,  # noqa: E712
+        )
+    )).scalar() or 0
+
+    by_warmth = {}
+    warmth_result = await db.execute(
+        select(OutreachContact.warmth, func.count(OutreachContact.id)).where(
+            OutreachContact.user_id == current_user.id,
+            OutreachContact.is_deleted == False,  # noqa: E712
+        ).group_by(OutreachContact.warmth)
+    )
+    for row in warmth_result.all():
+        by_warmth[row[0] or "unknown"] = row[1]
+
+    by_status = {}
+    status_result = await db.execute(
+        select(OutreachContact.status, func.count(OutreachContact.id)).where(
+            OutreachContact.user_id == current_user.id,
+            OutreachContact.is_deleted == False,  # noqa: E712
+        ).group_by(OutreachContact.status)
+    )
+    for row in status_result.all():
+        by_status[row[0] or "unknown"] = row[1]
+
+    # Count messages
+    total_messages = (await db.execute(
+        select(func.count(OutreachMessage.id))
+        .join(OutreachContact, OutreachContact.id == OutreachMessage.contact_id)
+        .where(
+            OutreachContact.user_id == current_user.id,
+            OutreachContact.is_deleted == False,  # noqa: E712
+        )
+    )).scalar() or 0
+
+    return {"data": {
+        "total_contacts": total,
+        "by_warmth": by_warmth,
+        "by_status": by_status,
+        "total_messages": total_messages,
+    }}
+
+
+@router.get("/follow-ups", response_model=DataResponse[list[OutreachMessageResponse]])
+async def get_follow_ups(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> DataResponse[list[OutreachMessageResponse]]:
+    """Get pending follow-up messages."""
+    result = await db.execute(
+        select(OutreachMessage)
+        .join(OutreachContact, OutreachContact.id == OutreachMessage.contact_id)
+        .where(
+            OutreachContact.user_id == current_user.id,
+            OutreachContact.is_deleted == False,  # noqa: E712
+            OutreachMessage.is_follow_up == True,  # noqa: E712
+            OutreachMessage.status == "draft",
+        ).order_by(OutreachMessage.created_at.desc())
+    )
+    messages = result.scalars().all()
+    return {"data": messages}
+
+
 @router.get("/contacts", response_model=DataResponse[list[OutreachContactResponse]])
 async def list_contacts(
     current_user: User = Depends(get_current_user),

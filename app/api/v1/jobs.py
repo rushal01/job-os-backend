@@ -55,6 +55,44 @@ async def list_jobs(
     return {"data": jobs, "next_cursor": next_cursor, "has_more": has_more}
 
 
+@router.get("/stats", response_model=DataResponse[dict])
+async def get_job_stats(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Get job statistics for the current user."""
+    from sqlalchemy import func, select
+
+    from app.models.job import Job
+
+    base = select(Job.status, func.count(Job.id)).where(
+        Job.user_id == current_user.id,
+        Job.is_deleted == False,  # noqa: E712
+    ).group_by(Job.status)
+    result = await db.execute(base)
+    by_status = {row[0]: row[1] for row in result.all()}
+
+    total = sum(by_status.values())
+    avg_score_result = await db.execute(
+        select(func.avg(Job.score)).where(
+            Job.user_id == current_user.id,
+            Job.is_deleted == False,  # noqa: E712
+            Job.score.isnot(None),
+        )
+    )
+    avg_score = avg_score_result.scalar() or 0.0
+
+    return {"data": {
+        "total": total,
+        "by_status": by_status,
+        "avg_score": round(float(avg_score), 1),
+        "bookmarked": by_status.get("bookmarked", 0),
+        "new": by_status.get("new", 0),
+        "scored": by_status.get("scored", 0),
+        "applied": by_status.get("applied", 0),
+    }}
+
+
 @router.get("/search", response_model=DataResponse[list[JobResponse]])
 async def search_jobs(
     q: str = Query(...),

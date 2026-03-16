@@ -11,6 +11,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.schemas.common import DataResponse, TaskResponse
 from app.schemas.email import EmailSettings
+from app.services import email_service
 
 router = APIRouter(prefix="/email")
 
@@ -21,7 +22,8 @@ async def get_email_settings(
     db: AsyncSession = Depends(get_db),
 ) -> DataResponse[EmailSettings]:
     """Get email integration settings."""
-    raise NotImplementedError
+    settings = await email_service.get_email_settings(db, current_user.id)
+    return DataResponse(data=EmailSettings(**settings))
 
 
 @router.put("/settings", response_model=DataResponse[EmailSettings])
@@ -31,7 +33,10 @@ async def update_email_settings(
     db: AsyncSession = Depends(get_db),
 ) -> DataResponse[EmailSettings]:
     """Update email integration settings."""
-    raise NotImplementedError
+    updated = await email_service.update_email_settings(
+        db, current_user.id, body.model_dump()
+    )
+    return DataResponse(data=EmailSettings(**updated))
 
 
 @router.post("/scan", response_model=TaskResponse)
@@ -40,4 +45,5 @@ async def trigger_email_scan(
     db: AsyncSession = Depends(get_db),
 ) -> TaskResponse:
     """Trigger an async email scan for job-related emails."""
-    raise NotImplementedError
+    task_id = await email_service.trigger_email_scan(db, current_user.id)
+    return TaskResponse(task_id=task_id)

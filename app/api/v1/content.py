@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.common import TaskResponse
+from app.schemas.common import DataResponse, TaskResponse
 from app.services import content_service
 
 router = APIRouter(prefix="/content")
@@ -37,6 +37,41 @@ class _GenerateAnswersBody(BaseModel):
 class _RegenerateBody(BaseModel):
     document_id: uuid.UUID
     instructions: str
+
+
+@router.get("/variants/{job_id}", response_model=DataResponse[list[dict]])
+async def get_content_variants(
+    job_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Get all generated content variants for a job."""
+    from sqlalchemy import select
+
+    from app.models.document import Document
+    from app.schemas.common import DataResponse
+
+    result = await db.execute(
+        select(Document).where(
+            Document.job_id == job_id,
+            Document.user_id == current_user.id,
+        ).order_by(Document.created_at.desc())
+    )
+    documents = result.scalars().all()
+
+    variants = []
+    for doc in documents:
+        variants.append({
+            "id": str(doc.id),
+            "type": doc.type,
+            "filename": doc.filename,
+            "variant_label": doc.variant_label,
+            "quality_score": doc.quality_score,
+            "quality_breakdown": doc.quality_breakdown,
+            "created_at": doc.created_at.isoformat() if doc.created_at else None,
+        })
+
+    return {"data": variants}
 
 
 @router.post("/generate-resume", response_model=TaskResponse)
