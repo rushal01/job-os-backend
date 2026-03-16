@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     # Monitoring
     SENTRY_DSN: str = ""
 
+    # Seeding
+    SEED_ON_STARTUP: bool = False
+
     # Application
     ENVIRONMENT: str = "development"
     CORS_ORIGINS: str = "http://localhost:3000"

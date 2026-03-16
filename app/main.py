@@ -39,6 +39,31 @@ async def _run_migrations() -> None:
         logger.warning(f"Database migrations failed (will retry on next restart): {exc}")
 
 
+async def _run_seeds() -> None:
+    """Run database seed script if SEED_ON_STARTUP=true and tables are empty."""
+    from loguru import logger
+
+    try:
+        from sqlalchemy import func, select
+
+        from app.db.session import async_session
+        from app.models.user import User
+
+        async with async_session() as session:
+            result = await session.execute(select(func.count()).select_from(User))
+            count = result.scalar_one()
+            if count > 0:
+                logger.info(f"Skipping seed — {count} users already exist")
+                return
+
+        from scripts.seed import seed
+
+        await seed()
+        logger.info("Database seeded successfully")
+    except Exception as exc:
+        logger.warning(f"Database seeding failed: {exc}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     setup_logging()
@@ -55,6 +80,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     # Run migrations after server is listening (networking is ready)
     await _run_migrations()
+
+    # Optionally seed the database (set SEED_ON_STARTUP=true in env)
+    if settings.SEED_ON_STARTUP:
+        await _run_seeds()
 
     yield
     logger.info("Shutting down Job Application OS")

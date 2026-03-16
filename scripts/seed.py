@@ -9,13 +9,13 @@ import uuid
 from faker import Faker
 
 from app.db.session import async_session
-from app.models.user import User, UserRole
-from app.models.profile import Profile
-from app.models.skill import Skill
-from app.models.work_experience import WorkExperience
 from app.models.education import Education
 from app.models.job import Job
 from app.models.notification import Notification
+from app.models.profile import Profile
+from app.models.skill import Skill
+from app.models.user import User, UserRole
+from app.models.work_experience import WorkExperience
 
 fake = Faker()
 
@@ -51,9 +51,10 @@ async def seed() -> None:
                 name=f"{role} Search",
                 target_role=role,
                 target_seniority="Senior (6-10 YOE)",
-                years_of_experience=fake.random_int(5, 10),
+                years_of_experience=float(fake.random_int(5, 10)),
                 salary_min=fake.random_int(150000, 200000),
                 salary_max=fake.random_int(200000, 300000),
+                salary_currency="USD",
                 completeness_pct=fake.random_int(60, 95),
             )
             profiles.append(p)
