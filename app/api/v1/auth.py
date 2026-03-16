@@ -104,3 +104,22 @@ async def refresh(
 async def get_me(current_user: User = Depends(get_current_user)):
     """Return the currently authenticated user."""
     return UserResponse(user=UserSchema.model_validate(current_user))
+
+
+@router.get("/debug-config")
+async def debug_config():
+    """Temporary diagnostic endpoint — shows masked JWT secret config.
+
+    Remove this endpoint once auth is working.
+    """
+    from app.config import settings
+
+    secret = settings.SUPABASE_JWT_SECRET
+    return {
+        "jwt_secret_length": len(secret),
+        "jwt_secret_first4": secret[:4],
+        "jwt_secret_last4": secret[-4:],
+        "supabase_url": settings.SUPABASE_URL,
+        "cors_origins": settings.cors_origins_list,
+        "environment": settings.ENVIRONMENT,
+    }

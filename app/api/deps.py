@@ -21,12 +21,17 @@ async def get_current_user(
     created automatically (just-in-time provisioning).
     """
     if not authorization or not authorization.startswith("Bearer "):
+        logger.warning(
+            "get_current_user: no valid Authorization header (got: {})",
+            repr(authorization)[:80] if authorization else "None",
+        )
         raise AppError(
             code=ErrorCode.AUTH_INVALID_TOKEN,
             message="Missing or invalid Authorization header",
         )
 
     token = authorization.removeprefix("Bearer ").strip()
+    logger.debug("get_current_user: token length={} first20={}...", len(token), token[:20])
     payload = verify_jwt(token)
     supabase_uid = payload["sub"]
 

@@ -17,10 +17,32 @@ def verify_jwt(token: str) -> dict:
     """
     from loguru import logger
 
+    # Log token header (unverified) for diagnostics
+    try:
+        unverified_header = jwt.get_unverified_header(token)
+        unverified_claims = jwt.get_unverified_claims(token)
+        logger.debug(
+            "JWT header: {} | claims.aud={} claims.sub={} claims.exp={}",
+            unverified_header,
+            unverified_claims.get("aud"),
+            unverified_claims.get("sub", "???")[:8] + "...",
+            unverified_claims.get("exp"),
+        )
+    except Exception as parse_err:
+        logger.warning("Cannot parse JWT for diagnostics: {}", parse_err)
+
+    secret = settings.SUPABASE_JWT_SECRET
+    logger.debug(
+        "JWT secret loaded: length={} first4={} last4={}",
+        len(secret),
+        secret[:4],
+        secret[-4:],
+    )
+
     try:
         payload = jwt.decode(
             token,
-            settings.SUPABASE_JWT_SECRET,
+            secret,
             algorithms=["HS256"],
             audience="authenticated",
         )
@@ -29,10 +51,11 @@ def verify_jwt(token: str) -> dict:
                 code=ErrorCode.AUTH_INVALID_TOKEN,
                 message="Invalid token: missing subject claim",
             )
+        logger.info("JWT verified OK for sub={}", payload["sub"][:8] + "...")
         return payload
     except JWTError as e:
         error_message = str(e).lower()
-        logger.warning("JWT verification failed: {}", error_message)
+        logger.error("JWT verification FAILED: {}", str(e))
         if "expired" in error_message:
             raise AppError(
                 code=ErrorCode.AUTH_TOKEN_EXPIRED,
