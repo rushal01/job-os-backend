@@ -55,6 +55,10 @@ class Settings(BaseSettings):
     # Application
     ENVIRONMENT: str = "development"
     CORS_ORIGINS: str = "http://localhost:3000"
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
     API_VERSION: str = "v1"
     LOG_LEVEL: str = "DEBUG"
 

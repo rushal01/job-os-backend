@@ -49,7 +49,10 @@ class UserSchema(BaseModel):
     role: str
     avatar_url: str | None = None
     timezone: str
+    has_completed_onboarding: bool = False
     created_at: datetime
+    updated_at: datetime
+    last_login_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 

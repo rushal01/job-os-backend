@@ -52,8 +52,9 @@ async def _run_migrations() -> None:
             except Exception:
                 await session.rollback()
 
-        from alembic import command
         from alembic.config import Config
+
+        from alembic import command
 
         alembic_cfg = Config("alembic.ini")
         alembic_cfg.set_main_option("sqlalchemy.url", settings.SUPABASE_DB_URL)
@@ -153,13 +154,14 @@ def create_app() -> FastAPI:
         logger.warning(f"Rate limiting DISABLED — Redis unavailable: {exc}")
 
     # Order 1: CORS
-    origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",")]
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=origins,
+        allow_origins=settings.cors_origins_list,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type"],
+        allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+        expose_headers=["X-Request-ID"],
+        max_age=600,
     )
 
     # --- Sentry ---
