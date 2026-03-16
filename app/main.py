@@ -23,13 +23,41 @@ async def _run_migrations() -> None:
     from loguru import logger
 
     try:
+        # If old migration revisions exist, reset alembic_version so the
+        # consolidated migration can run fresh on a clean DB.
+        from sqlalchemy import text
+
+        from app.db.session import async_session
+
+        async with async_session() as session:
+            try:
+                result = await session.execute(
+                    text("SELECT version_num FROM alembic_version LIMIT 1")
+                )
+                row = result.first()
+                if row and row[0] in ("7a6fae2d4ef3", "a1b2c3d4e5f6"):
+                    logger.info(f"Resetting stale alembic_version ({row[0]}) for consolidated migration")
+                    await session.execute(text("DROP TABLE IF EXISTS alembic_version CASCADE"))
+                    # Drop all old tables so migration can recreate them cleanly
+                    for table in [
+                        "copilot_conversations", "api_keys", "failed_tasks", "tasks",
+                        "activity_log", "notifications", "interviews", "outreach_messages",
+                        "outreach_contacts", "review_queue", "documents", "applications",
+                        "job_sources", "jobs", "raw_jobs", "education", "work_experience",
+                        "skills", "profiles", "users",
+                    ]:
+                        await session.execute(text(f"DROP TABLE IF EXISTS {table} CASCADE"))
+                    await session.execute(text("DROP TYPE IF EXISTS userrole"))
+                    await session.commit()
+            except Exception:
+                await session.rollback()
+
         from alembic import command
         from alembic.config import Config
 
         alembic_cfg = Config("alembic.ini")
         alembic_cfg.set_main_option("sqlalchemy.url", settings.SUPABASE_DB_URL)
 
-        # Run in a thread since alembic's command.upgrade is synchronous
         import asyncio
 
         loop = asyncio.get_running_loop()
