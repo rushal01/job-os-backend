@@ -48,11 +48,13 @@ class AICostStats(BaseModel):
 class DashboardStats(BaseModel):
     """Dashboard summary — GET /analytics/dashboard-stats."""
 
-    active_jobs: int = 0
+    jobs_today: int = 0
+    jobs_today_change: float = 0.0
     pending_reviews: int = 0
-    applications_this_week: int = 0
-    interviews_scheduled: int = 0
+    active_applications: int = 0
+    active_applications_change: float = 0.0
     response_rate: float = 0.0
+    response_rate_change: float = 0.0
 
 
 class WeeklyReport(BaseModel):

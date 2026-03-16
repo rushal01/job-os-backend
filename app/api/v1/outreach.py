@@ -6,10 +6,14 @@ Referenced by file tree spec: app/api/v1/outreach.py
 import uuid
 
 from fastapi import APIRouter, Depends, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.exceptions import AppError, ErrorCode
 from app.db.session import get_db
+from app.models.outreach_contact import OutreachContact
+from app.models.outreach_message import OutreachMessage
 from app.models.user import User
 from app.schemas.common import DataResponse, SuccessResponse
 from app.schemas.outreach import (
@@ -29,7 +33,14 @@ async def list_contacts(
     db: AsyncSession = Depends(get_db),
 ) -> DataResponse[list[OutreachContactResponse]]:
     """List all outreach contacts for the current user."""
-    raise NotImplementedError
+    result = await db.execute(
+        select(OutreachContact).where(
+            OutreachContact.user_id == current_user.id,
+            OutreachContact.is_deleted == False,  # noqa: E712
+        ).order_by(OutreachContact.created_at.desc())
+    )
+    contacts = result.scalars().all()
+    return {"data": contacts}
 
 
 @router.post("/contacts", status_code=status.HTTP_201_CREATED, response_model=DataResponse[OutreachContactResponse])
@@ -39,7 +50,22 @@ async def create_contact(
     db: AsyncSession = Depends(get_db),
 ) -> DataResponse[OutreachContactResponse]:
     """Create a new outreach contact."""
-    raise NotImplementedError
+    contact = OutreachContact(
+        user_id=current_user.id,
+        job_id=body.job_id,
+        name=body.name,
+        title=body.title,
+        company=body.company,
+        linkedin_url=body.linkedin_url,
+        email=body.email,
+        channel=body.channel,
+        warmth=body.warmth,
+        status="draft",
+    )
+    db.add(contact)
+    await db.commit()
+    await db.refresh(contact)
+    return {"data": contact}
 
 
 @router.put("/contacts/{contact_id}", response_model=DataResponse[OutreachContactResponse])
@@ -50,7 +76,24 @@ async def update_contact(
     db: AsyncSession = Depends(get_db),
 ) -> DataResponse[OutreachContactResponse]:
     """Update an outreach contact."""
-    raise NotImplementedError
+    result = await db.execute(
+        select(OutreachContact).where(
+            OutreachContact.id == contact_id,
+            OutreachContact.user_id == current_user.id,
+            OutreachContact.is_deleted == False,  # noqa: E712
+        )
+    )
+    contact = result.scalar_one_or_none()
+    if not contact:
+        raise AppError(code=ErrorCode.RESOURCE_NOT_FOUND, message="Contact not found")
+
+    update_data = body.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(contact, field, value)
+
+    await db.commit()
+    await db.refresh(contact)
+    return {"data": contact}
 
 
 @router.delete("/contacts/{contact_id}", response_model=SuccessResponse)
@@ -60,7 +103,20 @@ async def delete_contact(
     db: AsyncSession = Depends(get_db),
 ) -> SuccessResponse:
     """Soft-delete an outreach contact."""
-    raise NotImplementedError
+    result = await db.execute(
+        select(OutreachContact).where(
+            OutreachContact.id == contact_id,
+            OutreachContact.user_id == current_user.id,
+            OutreachContact.is_deleted == False,  # noqa: E712
+        )
+    )
+    contact = result.scalar_one_or_none()
+    if not contact:
+        raise AppError(code=ErrorCode.RESOURCE_NOT_FOUND, message="Contact not found")
+
+    contact.is_deleted = True
+    await db.commit()
+    return {"success": True}
 
 
 @router.post("/messages", status_code=status.HTTP_201_CREATED, response_model=DataResponse[OutreachMessageResponse])
@@ -70,7 +126,30 @@ async def create_message(
     db: AsyncSession = Depends(get_db),
 ) -> DataResponse[OutreachMessageResponse]:
     """Create a new outreach message."""
-    raise NotImplementedError
+    # Verify the contact belongs to the current user
+    result = await db.execute(
+        select(OutreachContact).where(
+            OutreachContact.id == body.contact_id,
+            OutreachContact.user_id == current_user.id,
+            OutreachContact.is_deleted == False,  # noqa: E712
+        )
+    )
+    contact = result.scalar_one_or_none()
+    if not contact:
+        raise AppError(code=ErrorCode.RESOURCE_NOT_FOUND, message="Contact not found")
+
+    message = OutreachMessage(
+        contact_id=body.contact_id,
+        content=body.content,
+        channel=body.channel,
+        is_follow_up=body.is_follow_up,
+        follow_up_number=body.follow_up_number,
+        status="draft",
+    )
+    db.add(message)
+    await db.commit()
+    await db.refresh(message)
+    return {"data": message}
 
 
 @router.get("/contacts/{contact_id}/messages", response_model=DataResponse[list[OutreachMessageResponse]])
@@ -80,4 +159,22 @@ async def list_contact_messages(
     db: AsyncSession = Depends(get_db),
 ) -> DataResponse[list[OutreachMessageResponse]]:
     """List all messages for a contact."""
-    raise NotImplementedError
+    # Verify the contact belongs to the current user
+    result = await db.execute(
+        select(OutreachContact).where(
+            OutreachContact.id == contact_id,
+            OutreachContact.user_id == current_user.id,
+            OutreachContact.is_deleted == False,  # noqa: E712
+        )
+    )
+    contact = result.scalar_one_or_none()
+    if not contact:
+        raise AppError(code=ErrorCode.RESOURCE_NOT_FOUND, message="Contact not found")
+
+    result = await db.execute(
+        select(OutreachMessage).where(
+            OutreachMessage.contact_id == contact_id,
+        ).order_by(OutreachMessage.created_at.asc())
+    )
+    messages = result.scalars().all()
+    return {"data": messages}
