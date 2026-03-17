@@ -100,6 +100,18 @@ async def approve_item(
     return {"data": item}
 
 
+@router.post("/{item_id}/undo", response_model=DataResponse[ReviewQueueItem])
+async def undo_approval(
+    item_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Undo a review item approval within the 5-minute window."""
+    item = await review_service.undo_approval(db, current_user.id, item_id)
+    await db.commit()
+    return {"data": item}
+
+
 @router.post("/{item_id}/reject", response_model=DataResponse[ReviewQueueItem])
 async def reject_item(
     item_id: uuid.UUID,

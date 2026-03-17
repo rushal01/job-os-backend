@@ -73,7 +73,55 @@ async def approve_item(
 
     item.status = "approved"
     await db.flush()
+
+    # Set undo window in Redis (5 minutes)
+    try:
+        from app.db.redis import get_redis
+        redis_client = await get_redis()
+        if redis_client:
+            await redis_client.setex(f"undo:review:{item_id}", 300, "1")
+    except Exception:
+        pass  # Redis unavailable shouldn't block approval
+
     logger.info(f"Approved review item {item_id}")
+    return item
+
+
+async def undo_approval(
+    db: AsyncSession, user_id: uuid.UUID, item_id: uuid.UUID,
+) -> ReviewQueue:
+    """Undo a review item approval within the 5-minute undo window.
+
+    Uses Redis to track the undo window (300s TTL).
+    Returns the item to 'pending' status if within the window.
+    """
+    result = await db.execute(
+        select(ReviewQueue).where(ReviewQueue.id == item_id, ReviewQueue.user_id == user_id)
+    )
+    item = result.scalar_one_or_none()
+    if not item:
+        raise AppError(code=ErrorCode.RESOURCE_NOT_FOUND, message="Review item not found")
+
+    if item.status != "approved":
+        raise AppError(code=ErrorCode.VALIDATION_ERROR, message="Item is not approved")
+
+    # Check Redis undo window
+    from app.db.redis import get_redis
+    redis_client = await get_redis()
+    undo_key = f"undo:review:{item_id}"
+
+    if redis_client:
+        window_exists = await redis_client.exists(undo_key)
+        if not window_exists:
+            raise AppError(
+                code=ErrorCode.VALIDATION_ERROR,
+                message="Undo window has expired (5 minutes)",
+            )
+        await redis_client.delete(undo_key)
+
+    item.status = "pending"
+    await db.flush()
+    logger.info(f"Undid approval for review item {item_id}")
     return item
 
 
