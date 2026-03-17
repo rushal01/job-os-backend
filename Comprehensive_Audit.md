@@ -30,6 +30,20 @@ The following items were **RESOLVED** in commits `540ec16` (backend) and `78611f
 - Frontend unit/E2E test infrastructure (vitest + playwright configs)
 - Frontend input sanitization (DOMPurify)
 
+### Frontend Pages Using Hardcoded Mock Data (8 pages need API wiring)
+- `/market` — 100% hardcoded (mockCompanies, mockSalaries, mockSkills)
+- `/interviews` — hardcoded mockInterviews array
+- `/files` — hardcoded mockFolderTree
+- `/changelog` — hardcoded release entries
+- `/admin` — hardcoded user list, stats, audit log
+- `/status` — hardcoded service status
+- `/auth/forgot-password` — mock API call (setTimeout only)
+- `/auth/verify-email` — mock resend (no actual API call)
+
+### Frontend Error Boundary Coverage (25/31 pages missing)
+Only 6 pages have error handling: login, signup, jobs, job detail, review, applications.
+25 pages lack error boundaries.
+
 ---
 
 ## 1. MISSING FEATURES (Not Built At All)
