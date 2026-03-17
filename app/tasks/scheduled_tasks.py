@@ -21,6 +21,7 @@ def run_all_discoveries():
     """Run job discovery for all users with active profiles and automation enabled."""
     async def _run():
         from sqlalchemy import select
+
         from app.db.session import async_session
         from app.models.profile import Profile
         from app.tasks.discovery_tasks import discover_jobs
@@ -54,6 +55,7 @@ def auto_score_new_jobs():
     """Score all new (unscored) jobs."""
     async def _run():
         from sqlalchemy import select
+
         from app.db.session import async_session
         from app.models.job import Job
         from app.tasks.scoring_tasks import score_job
@@ -80,6 +82,7 @@ def cleanup_old_notifications():
     """Delete read notifications older than 30 days."""
     async def _run():
         from sqlalchemy import delete
+
         from app.db.session import async_session
         from app.models.notification import Notification
 
@@ -104,6 +107,7 @@ def expire_stale_jobs():
     """Mark jobs older than 60 days as expired."""
     async def _run():
         from sqlalchemy import update
+
         from app.db.session import async_session
         from app.models.job import Job
 

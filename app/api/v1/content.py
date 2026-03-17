@@ -62,7 +62,6 @@ async def get_content_variants(
     from sqlalchemy import select
 
     from app.models.document import Document
-    from app.schemas.common import DataResponse
 
     result = await db.execute(
         select(Document).where(

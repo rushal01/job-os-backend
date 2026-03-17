@@ -99,14 +99,14 @@ async def get_unread_count(db: AsyncSession, user_id: uuid.UUID) -> int:
 
 
 async def create_notification(
-    db: AsyncSession, user_id: uuid.UUID, type: str, title: str,
+    db: AsyncSession, user_id: uuid.UUID, notification_type: str, title: str,
     body: str | None = None, priority: str = "medium",
     action_url: str | None = None, extra_data: dict | None = None,
 ) -> Notification:
     """Create a new notification (called by services, not directly by API)."""
     notification = Notification(
         user_id=user_id,
-        type=type,
+        type=notification_type,
         title=title,
         body=body,
         priority=priority,

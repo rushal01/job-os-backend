@@ -25,7 +25,7 @@ def generate_weekly_report(self, user_id: str) -> dict:
     """Generate and store a weekly activity report for a user."""
 
     async def _generate():
-        from sqlalchemy import func, select
+        from sqlalchemy import select
 
         from app.db.session import async_session
         from app.models.application import Application

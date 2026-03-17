@@ -4,7 +4,7 @@
 """
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
@@ -17,7 +17,6 @@ from app.models.job import Job
 from app.models.job_source import JobSource
 from app.models.review_queue import ReviewQueue
 from app.models.user import User
-from app.models.interview import Interview
 from app.schemas.analytics import (
     AICostStats,
     DashboardStats,
@@ -40,7 +39,7 @@ def _period_start(period: str) -> datetime:
             days = int(period[:-1])
         except ValueError:
             days = 30
-    return datetime.now(timezone.utc) - timedelta(days=days)
+    return datetime.now(UTC) - timedelta(days=days)
 
 
 @router.get("/funnel", response_model=DataResponse[FunnelData])
@@ -206,7 +205,7 @@ async def get_dashboard_stats(
     db: AsyncSession = Depends(get_db),
 ) -> DataResponse[DashboardStats]:
     """Get dashboard summary statistics."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Pending reviews
     pending_reviews = (await db.execute(
@@ -271,7 +270,7 @@ async def get_weekly_report(
     db: AsyncSession = Depends(get_db),
 ) -> DataResponse[WeeklyReport]:
     """Get weekly report."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     week_start = now - timedelta(days=now.weekday())
     week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
     week_end = week_start + timedelta(days=7)
@@ -328,13 +327,13 @@ async def get_weekly_report(
     )}
 
 
-@router.get("/goals", response_model=DataResponse[dict])
+@router.get("/goals", response_model=DataResponse[list[dict]])
 async def get_goals(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> DataResponse[dict]:
+) -> DataResponse[list[dict]]:
     """Get goal tracking data."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     week_start = now - timedelta(days=now.weekday())
     week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -359,12 +358,12 @@ async def get_goals(
     weekly_app_goal = goals.get("weekly_applications", 10)
     weekly_discovery_goal = goals.get("weekly_discoveries", 50)
 
-    return {"data": {
-        "weekly_applications": {"current": apps_this_week, "target": weekly_app_goal},
-        "weekly_discoveries": {"current": jobs_this_week, "target": weekly_discovery_goal},
-        "response_rate": {"current": 0, "target": goals.get("response_rate", 20)},
-        "interviews": {"current": 0, "target": goals.get("weekly_interviews", 3)},
-    }}
+    return {"data": [
+        {"id": "weekly_applications", "name": "Weekly Applications", "current": apps_this_week, "target": weekly_app_goal, "status": "on_track" if apps_this_week >= weekly_app_goal * 0.5 else "behind"},
+        {"id": "weekly_discoveries", "name": "Weekly Discoveries", "current": jobs_this_week, "target": weekly_discovery_goal, "status": "on_track" if jobs_this_week >= weekly_discovery_goal * 0.5 else "behind"},
+        {"id": "response_rate", "name": "Response Rate %", "current": 0, "target": goals.get("response_rate", 20), "status": "behind"},
+        {"id": "interviews", "name": "Weekly Interviews", "current": 0, "target": goals.get("weekly_interviews", 3), "status": "behind"},
+    ]}
 
 
 @router.get("/ab-tests", response_model=DataResponse[list[dict]])

@@ -41,7 +41,6 @@ def submit_application(self, user_id: str, application_id: str) -> dict:
 
         from app.db.session import async_session
         from app.models.application import Application
-        from app.models.job import Job
         from app.services.notification_service import create_notification
 
         uid = uuid.UUID(user_id)

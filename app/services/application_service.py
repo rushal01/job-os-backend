@@ -7,7 +7,7 @@ These service functions provide the same logic for use by tasks or other service
 
 import base64
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from loguru import logger
 from sqlalchemy import func, select
@@ -34,7 +34,7 @@ async def check_duplicate_guard(
     if not job:
         raise AppError(code=ErrorCode.RESOURCE_NOT_FOUND, message="Job not found")
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=90)
+    cutoff = datetime.now(UTC) - timedelta(days=90)
 
     count_result = await db.execute(
         select(func.count())
@@ -59,7 +59,7 @@ async def check_daily_limit(
     Returns True if the user has created fewer than ``daily_max`` applications
     today (allowed). Returns False otherwise (blocked).
     """
-    today_start = datetime.now(timezone.utc).replace(
+    today_start = datetime.now(UTC).replace(
         hour=0, minute=0, second=0, microsecond=0,
     )
 
@@ -190,7 +190,7 @@ async def mark_applied(
 
     app.status = "submitted"
     app.submission_method = method
-    app.submitted_at = datetime.now(timezone.utc)
+    app.submitted_at = datetime.now(UTC)
     if notes:
         app.notes = notes
 

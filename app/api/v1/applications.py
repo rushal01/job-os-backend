@@ -6,6 +6,7 @@
 import base64
 import contextlib
 import uuid
+from datetime import UTC
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
@@ -196,7 +197,7 @@ async def mark_applied(
     db: AsyncSession = Depends(get_db),
 ) -> DataResponse[ApplicationResponse]:
     """Manually mark an application as applied."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     result = await db.execute(
         select(Application).where(
@@ -211,7 +212,7 @@ async def mark_applied(
 
     app.status = "submitted"
     app.submission_method = body.method
-    app.submitted_at = datetime.now(timezone.utc)
+    app.submitted_at = datetime.now(UTC)
     if body.notes:
         app.notes = body.notes
 

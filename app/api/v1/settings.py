@@ -1,9 +1,8 @@
 """Settings API — user preferences, scoring weights, automation config, job sources."""
 
-import uuid
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.db.session import get_db

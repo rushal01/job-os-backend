@@ -85,11 +85,11 @@ async def update_user_role(
     # Validate role is a valid UserRole
     try:
         valid_role = UserRole(role)
-    except ValueError:
+    except ValueError as e:
         raise AppError(
             code=ErrorCode.VALIDATION_ERROR,
             message=f"Invalid role: {role}. Must be one of: {[r.value for r in UserRole]}",
-        )
+        ) from e
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -202,7 +202,7 @@ async def update_feature_flags(db: AsyncSession, flags: dict) -> dict:
             raise AppError(
                 code=ErrorCode.INTERNAL_ERROR,
                 message="Failed to update feature flags",
-            )
+            ) from exc
     else:
         raise AppError(
             code=ErrorCode.INTERNAL_ERROR,

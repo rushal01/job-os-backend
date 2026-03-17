@@ -64,12 +64,12 @@ async def get_download_url(
 @router.get("", response_model=DataResponse[list[dict]])
 async def list_files(
     job_id: uuid.UUID | None = None,
-    type: str | None = None,
+    file_type: str | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """List files filtered by job and/or type."""
-    docs = await file_service.list_files(db, current_user.id, job_id, type)
+    docs = await file_service.list_files(db, current_user.id, job_id, file_type)
     return {"data": [
         {
             "id": str(d.id),

@@ -6,7 +6,7 @@ These service functions provide the same logic for use by tasks or other service
 """
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,7 +25,7 @@ def _period_start(period: str) -> datetime:
             days = int(period[:-1])
         except ValueError:
             days = 30
-    return datetime.now(timezone.utc) - timedelta(days=days)
+    return datetime.now(UTC) - timedelta(days=days)
 
 
 async def get_funnel(
@@ -127,7 +127,7 @@ async def get_ai_cost(db: AsyncSession, user_id: uuid.UUID, period: str) -> dict
 
 async def get_dashboard_stats(db: AsyncSession, user_id: uuid.UUID) -> dict:
     """Compute dashboard summary statistics."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
     pending_reviews = (await db.execute(
@@ -176,7 +176,7 @@ async def get_dashboard_stats(db: AsyncSession, user_id: uuid.UUID) -> dict:
 
 async def get_weekly_report(db: AsyncSession, user_id: uuid.UUID, week: str | None) -> dict:
     """Generate weekly activity report."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     week_start = now - timedelta(days=now.weekday())
     week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
     week_end = week_start + timedelta(days=7)

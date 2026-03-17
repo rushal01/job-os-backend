@@ -3,7 +3,6 @@
 import asyncio
 import re
 import time
-from datetime import UTC, datetime
 from html import unescape
 
 import httpx

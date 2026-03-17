@@ -17,6 +17,7 @@ def _get_r2_client():
     """Try to create an R2 (S3-compatible) client. Returns None if not configured."""
     try:
         import boto3
+
         from app.config import settings
 
         if not settings.R2_ACCESS_KEY_ID or not settings.R2_ENDPOINT_URL:

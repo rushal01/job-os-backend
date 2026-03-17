@@ -7,7 +7,7 @@ import httpx
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.hashes import SHA256
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from jose import JWTError, jwk, jwt
+from jose import JWTError, jwt
 
 from app.config import settings
 from app.core.exceptions import AppError, ErrorCode
@@ -82,7 +82,7 @@ def verify_jwt(token: str) -> dict:
         raise AppError(
             code=ErrorCode.AUTH_INVALID_TOKEN,
             message="Invalid or malformed token",
-        )
+        ) from e
 
     # Pick the right key based on algorithm
     if token_alg.startswith("ES") or token_alg.startswith("RS") or token_alg.startswith("PS"):
@@ -115,11 +115,11 @@ def verify_jwt(token: str) -> dict:
             raise AppError(
                 code=ErrorCode.AUTH_TOKEN_EXPIRED,
                 message="Token has expired",
-            )
+            ) from e
         raise AppError(
             code=ErrorCode.AUTH_INVALID_TOKEN,
             message="Invalid or malformed token",
-        )
+        ) from e
 
 
 def _derive_user_key(user_id: uuid.UUID) -> bytes:
@@ -166,8 +166,8 @@ def decrypt_api_key(
     try:
         plaintext = aesgcm.decrypt(nonce, ct_with_tag, None)
         return plaintext.decode("utf-8")
-    except Exception:
+    except Exception as e:
         raise AppError(
             code=ErrorCode.AI_KEY_INVALID,
             message="Failed to decrypt API key — possible tampering or wrong user",
-        )
+        ) from e

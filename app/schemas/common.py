@@ -20,7 +20,7 @@ class ErrorEnvelope(BaseModel):
     error: ErrorBody
 
 
-class PaginatedResponse(BaseModel, Generic[T]):
+class PaginatedResponse(BaseModel, Generic[T]):  # noqa: UP046
     data: list[T]
     next_cursor: str | None = None
     has_more: bool = False
@@ -34,5 +34,5 @@ class TaskResponse(BaseModel):
     task_id: str
 
 
-class DataResponse(BaseModel, Generic[T]):
+class DataResponse(BaseModel, Generic[T]):  # noqa: UP046
     data: T

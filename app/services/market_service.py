@@ -1,10 +1,10 @@
 """Market intelligence service — salary data, trends, and skill demand analysis."""
 
 from collections import Counter
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from loguru import logger
-from sqlalchemy import case, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.job import Job
@@ -137,7 +137,7 @@ async def get_salary_data(
 
 async def get_market_trends(db: AsyncSession) -> dict:
     """Get overall job market trends."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     twelve_weeks_ago = now - timedelta(weeks=12)
     eight_weeks_ago = now - timedelta(weeks=8)
     four_weeks_ago = now - timedelta(weeks=4)

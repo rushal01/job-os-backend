@@ -1,7 +1,6 @@
 from fastapi import APIRouter
 
 from app.api.v1.admin import router as admin_router
-from app.api.v1.settings import router as settings_router
 from app.api.v1.ai import router as ai_router
 from app.api.v1.analytics import router as analytics_router
 from app.api.v1.applications import router as applications_router
@@ -19,6 +18,7 @@ from app.api.v1.notifications import router as notifications_router
 from app.api.v1.outreach import router as outreach_router
 from app.api.v1.profiles import router as profiles_router
 from app.api.v1.review import router as review_router
+from app.api.v1.settings import router as settings_router
 from app.api.v1.skills import router as skills_router
 from app.api.v1.work_experience import router as work_experience_router
 
