@@ -3,6 +3,8 @@
 6 endpoints: list, get, submit, mark-applied, status update, undo.
 """
 
+import base64
+import contextlib
 import uuid
 
 from fastapi import APIRouter, Depends, Query
@@ -12,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user
 from app.core.exceptions import AppError, ErrorCode
 from app.db.session import get_db
+from app.models.activity_log import ActivityLog
 from app.models.application import Application
 from app.models.user import User
 from app.schemas.application import (
@@ -68,7 +71,7 @@ async def list_applications(
     query = select(Application).where(
         Application.user_id == current_user.id,
         Application.is_deleted == False,  # noqa: E712
-    ).order_by(Application.updated_at.desc()).limit(limit)
+    ).order_by(Application.updated_at.desc())
 
     if status:
         query = query.where(Application.status == status)
@@ -76,10 +79,60 @@ async def list_applications(
     if profile_id:
         query = query.where(Application.profile_id == profile_id)
 
-    result = await db.execute(query)
-    items = result.scalars().all()
+    # Cursor pagination using offset (base64-encoded integer)
+    if cursor:
+        with contextlib.suppress(ValueError, Exception):
+            cursor_offset = int(base64.b64decode(cursor).decode())
+            query = query.offset(cursor_offset)
 
-    return {"data": items, "next_cursor": None, "has_more": False}
+    # Fetch limit+1 to determine has_more
+    query = query.limit(limit + 1)
+    result = await db.execute(query)
+    items = list(result.scalars().all())
+
+    has_more = len(items) > limit
+    if has_more:
+        items = items[:limit]
+
+    next_cursor = None
+    if has_more:
+        current_offset = 0
+        if cursor:
+            with contextlib.suppress(ValueError, Exception):
+                current_offset = int(base64.b64decode(cursor).decode())
+        next_offset = current_offset + limit
+        next_cursor = base64.b64encode(str(next_offset).encode()).decode()
+
+    return {"data": items, "next_cursor": next_cursor, "has_more": has_more}
+
+
+@router.get("/{application_id}/timeline", response_model=DataResponse[list[dict]])
+async def get_application_timeline(
+    application_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Get the activity timeline for an application."""
+    result = await db.execute(
+        select(ActivityLog).where(
+            ActivityLog.entity_type == "application",
+            ActivityLog.entity_id == application_id,
+            ActivityLog.user_id == current_user.id,
+        ).order_by(ActivityLog.created_at.desc())
+    )
+    entries = result.scalars().all()
+
+    timeline = []
+    for entry in entries:
+        timeline.append({
+            "id": str(entry.id),
+            "action": entry.action,
+            "actor": entry.actor,
+            "detail": entry.detail,
+            "created_at": entry.created_at.isoformat() if entry.created_at else None,
+        })
+
+    return {"data": timeline}
 
 
 @router.get("/{application_id}", response_model=DataResponse[ApplicationResponse])

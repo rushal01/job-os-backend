@@ -17,6 +17,19 @@ from app.services import content_service
 
 router = APIRouter(prefix="/content")
 
+RESUME_TEMPLATES = [
+    {"id": "professional", "name": "Professional", "description": "Clean, ATS-friendly format"},
+    {"id": "modern", "name": "Modern", "description": "Contemporary design with sidebar"},
+    {"id": "minimal", "name": "Minimal", "description": "Simple and elegant"},
+    {"id": "technical", "name": "Technical", "description": "Optimized for engineering roles"},
+]
+
+
+@router.get("/templates", response_model=DataResponse[list[dict]])
+async def get_templates() -> dict:
+    """Return the static list of available resume templates."""
+    return {"data": RESUME_TEMPLATES}
+
 
 class _GenerateResumeBody(BaseModel):
     job_id: uuid.UUID

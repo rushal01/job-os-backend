@@ -7,14 +7,73 @@ These service functions provide the same logic for use by tasks or other service
 
 import base64
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import AppError, ErrorCode
 from app.models.application import Application
+from app.models.job import Job
+
+
+async def check_duplicate_guard(
+    db: AsyncSession, user_id: uuid.UUID, job_id: uuid.UUID,
+) -> bool:
+    """Check whether the user is allowed to apply based on company-level duplicate rules.
+
+    Returns True if the user has fewer than 2 non-deleted applications to the same
+    company within the last 90 days (allowed). Returns False otherwise (blocked).
+    """
+    # Look up the job to get the company name
+    result = await db.execute(
+        select(Job).where(Job.id == job_id)
+    )
+    job = result.scalar_one_or_none()
+    if not job:
+        raise AppError(code=ErrorCode.RESOURCE_NOT_FOUND, message="Job not found")
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=90)
+
+    count_result = await db.execute(
+        select(func.count())
+        .select_from(Application)
+        .join(Job, Application.job_id == Job.id)
+        .where(
+            Application.user_id == user_id,
+            Application.is_deleted == False,  # noqa: E712
+            Job.company == job.company,
+            Application.created_at >= cutoff,
+        )
+    )
+    count = count_result.scalar_one()
+    return count < 2
+
+
+async def check_daily_limit(
+    db: AsyncSession, user_id: uuid.UUID, daily_max: int = 25,
+) -> bool:
+    """Check whether the user is below their daily application limit.
+
+    Returns True if the user has created fewer than ``daily_max`` applications
+    today (allowed). Returns False otherwise (blocked).
+    """
+    today_start = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0,
+    )
+
+    count_result = await db.execute(
+        select(func.count())
+        .select_from(Application)
+        .where(
+            Application.user_id == user_id,
+            Application.is_deleted == False,  # noqa: E712
+            Application.created_at >= today_start,
+        )
+    )
+    count = count_result.scalar_one()
+    return count < daily_max
 
 
 async def list_applications(
@@ -82,6 +141,17 @@ async def submit_application(
     if not app:
         raise AppError(code=ErrorCode.RESOURCE_NOT_FOUND, message="Application not found")
 
+    if not await check_duplicate_guard(db, user_id, app.job_id):
+        raise AppError(
+            code=ErrorCode.RESOURCE_ALREADY_EXISTS,
+            message="Duplicate guard: too many applications to this company in the last 90 days",
+        )
+    if not await check_daily_limit(db, user_id):
+        raise AppError(
+            code=ErrorCode.RATE_LIMIT_EXCEEDED,
+            message="Daily application limit reached",
+        )
+
     task = Task(user_id=user_id, task_name="submit_application", status="pending", progress_pct=0.0)
     db.add(task)
     await db.flush()
@@ -106,6 +176,17 @@ async def mark_applied(
     app = await get_application(db, user_id, application_id)
     if not app:
         raise AppError(code=ErrorCode.RESOURCE_NOT_FOUND, message="Application not found")
+
+    if not await check_duplicate_guard(db, user_id, app.job_id):
+        raise AppError(
+            code=ErrorCode.RESOURCE_ALREADY_EXISTS,
+            message="Duplicate guard: too many applications to this company in the last 90 days",
+        )
+    if not await check_daily_limit(db, user_id):
+        raise AppError(
+            code=ErrorCode.RATE_LIMIT_EXCEEDED,
+            message="Daily application limit reached",
+        )
 
     app.status = "submitted"
     app.submission_method = method

@@ -5,6 +5,7 @@ Implements business logic for job management per API Contract Section 4.3.
 
 import base64
 import contextlib
+import datetime
 import uuid
 
 from sqlalchemy import select
@@ -19,7 +20,8 @@ async def list_jobs(
     user_id: uuid.UUID,
     cursor: str | None,
     limit: int,
-    sort: str | None,
+    sort_by: str | None,
+    sort_order: str,
     filters: dict,
 ) -> tuple[list[Job], str | None, bool]:
     """List jobs with cursor pagination and filters. Returns (jobs, next_cursor, has_more)."""
@@ -36,14 +38,52 @@ async def list_jobs(
         query = query.where(Job.company.ilike(f"%{filters['company']}%"))
     if filters.get("profile_id"):
         query = query.where(Job.profile_id == filters["profile_id"])
+    if filters.get("location_type"):
+        query = query.where(Job.location_type == filters["location_type"])
+    if filters.get("seniority"):
+        query = query.where(Job.seniority == filters["seniority"])
+    if filters.get("employment_type"):
+        query = query.where(Job.employment_type == filters["employment_type"])
+    if filters.get("salary_min") is not None:
+        query = query.where(Job.salary_max >= filters["salary_min"])
+    if filters.get("salary_max") is not None:
+        query = query.where(Job.salary_min <= filters["salary_max"])
+    if filters.get("decision"):
+        query = query.where(Job.decision == filters["decision"])
+    if filters.get("date_from"):
+        date_from = datetime.datetime.fromisoformat(filters["date_from"])
+        query = query.where(Job.created_at >= date_from)
+    if filters.get("date_to"):
+        date_to = datetime.datetime.fromisoformat(filters["date_to"])
+        query = query.where(Job.created_at <= date_to)
+    if filters.get("source"):
+        from app.models.job_source import JobSource
+
+        query = query.join(Job.sources).where(JobSource.source == filters["source"])
+    if filters.get("bookmarked") is not None:
+        if filters["bookmarked"]:
+            query = query.where(Job.status == "bookmarked")
+        else:
+            query = query.where(Job.status != "bookmarked")
+    if filters.get("has_score") is not None:
+        if filters["has_score"]:
+            query = query.where(Job.score.isnot(None))
+        else:
+            query = query.where(Job.score.is_(None))
 
     # Sort
-    if sort == "score":
-        query = query.order_by(Job.score.desc().nullslast(), Job.created_at.desc())
-    elif sort == "company":
-        query = query.order_by(Job.company, Job.created_at.desc())
+    sort_column_map = {
+        "created_at": Job.created_at,
+        "score": Job.score,
+        "salary_max": Job.salary_max,
+        "company": Job.company,
+        "title": Job.title,
+    }
+    sort_col = sort_column_map.get(sort_by or "created_at", Job.created_at)
+    if sort_order == "asc":
+        query = query.order_by(sort_col.asc().nullslast(), Job.created_at.desc())
     else:
-        query = query.order_by(Job.created_at.desc())
+        query = query.order_by(sort_col.desc().nullslast(), Job.created_at.desc())
 
     # Cursor pagination using offset (base64-encoded integer)
     if cursor:

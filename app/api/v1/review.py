@@ -74,6 +74,18 @@ async def list_review_items(
     return {"data": items, "next_cursor": next_cursor, "has_more": has_more}
 
 
+@router.post("/bulk-approve", response_model=BulkApproveResponse)
+async def bulk_approve(
+    body: BulkApproveRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> BulkApproveResponse:
+    """Approve multiple review queue items at once."""
+    count = await review_service.bulk_approve(db, current_user.id, body.item_ids)
+    await db.commit()
+    return BulkApproveResponse(approved=count)
+
+
 @router.get("/{item_id}", response_model=DataResponse[ReviewQueueItemDetail])
 async def get_review_item(
     item_id: uuid.UUID,
@@ -136,15 +148,3 @@ async def regenerate_item(
     task_id = await review_service.regenerate_item(db, current_user.id, item_id, body.instructions)
     await db.commit()
     return TaskResponse(task_id=task_id)
-
-
-@router.post("/bulk-approve", response_model=BulkApproveResponse)
-async def bulk_approve(
-    body: BulkApproveRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> BulkApproveResponse:
-    """Approve multiple review queue items at once."""
-    count = await review_service.bulk_approve(db, current_user.id, body.item_ids)
-    await db.commit()
-    return BulkApproveResponse(approved=count)

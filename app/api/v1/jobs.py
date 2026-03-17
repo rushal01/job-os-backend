@@ -30,16 +30,28 @@ router = APIRouter(prefix="/jobs")
 async def list_jobs(
     cursor: str | None = None,
     limit: int = Query(default=20, ge=1, le=100),
-    sort: str | None = None,
     status_filter: str | None = Query(default=None, alias="status"),
     min_score: float | None = None,
     company: str | None = None,
     profile_id: uuid.UUID | None = None,
+    location_type: str | None = None,
+    seniority: str | None = None,
+    employment_type: str | None = None,
+    salary_min: int | None = None,
+    salary_max: int | None = None,
+    decision: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    source: str | None = None,
+    bookmarked: bool | None = None,
+    has_score: bool | None = None,
+    sort_by: str = Query(default="created_at"),
+    sort_order: str = Query(default="desc"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """List jobs with cursor pagination and filters."""
-    filters = {}
+    filters: dict = {}
     if status_filter:
         filters["status"] = status_filter
     if min_score is not None:
@@ -48,9 +60,31 @@ async def list_jobs(
         filters["company"] = company
     if profile_id:
         filters["profile_id"] = profile_id
+    if location_type:
+        filters["location_type"] = location_type
+    if seniority:
+        filters["seniority"] = seniority
+    if employment_type:
+        filters["employment_type"] = employment_type
+    if salary_min is not None:
+        filters["salary_min"] = salary_min
+    if salary_max is not None:
+        filters["salary_max"] = salary_max
+    if decision:
+        filters["decision"] = decision
+    if date_from:
+        filters["date_from"] = date_from
+    if date_to:
+        filters["date_to"] = date_to
+    if source:
+        filters["source"] = source
+    if bookmarked is not None:
+        filters["bookmarked"] = bookmarked
+    if has_score is not None:
+        filters["has_score"] = has_score
 
     jobs, next_cursor, has_more = await job_service.list_jobs(
-        db, current_user.id, cursor, limit, sort, filters
+        db, current_user.id, cursor, limit, sort_by, sort_order, filters
     )
     return {"data": jobs, "next_cursor": next_cursor, "has_more": has_more}
 

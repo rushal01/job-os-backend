@@ -8,7 +8,7 @@ from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import AppError, ErrorCode
@@ -178,6 +178,100 @@ async def execute_action(db: AsyncSession, user_id: uuid.UUID, action: str, para
                 params.get("instructions"),
             )
             return {"task_id": result.id, "result": None}
+
+        elif action == "stats":
+            from app.models.application import Application
+
+            # Total applications
+            total_result = await db.execute(
+                select(func.count(Application.id)).where(
+                    Application.user_id == user_id,
+                )
+            )
+            total = total_result.scalar() or 0
+
+            # Count by status
+            status_result = await db.execute(
+                select(Application.status, func.count(Application.id))
+                .where(Application.user_id == user_id)
+                .group_by(Application.status)
+            )
+            by_status = {row[0]: row[1] for row in status_result.all()}
+
+            interviews = by_status.get("interview", 0)
+            offers = by_status.get("offer", 0)
+            rejections = by_status.get("rejected", 0)
+            response_rate = round((interviews + offers + rejections) / total * 100, 1) if total > 0 else 0.0
+
+            return {
+                "task_id": None,
+                "result": {
+                    "total": total,
+                    "by_status": by_status,
+                    "interviews": interviews,
+                    "offers": offers,
+                    "rejections": rejections,
+                    "response_rate": response_rate,
+                },
+            }
+
+        elif action == "compare":
+            from app.models.job import Job
+
+            job_ids = params.get("job_ids")
+            if not job_ids or len(job_ids) != 2:
+                return {"task_id": None, "result": {"message": "Provide exactly two job_ids to compare"}}
+
+            result_a = await db.execute(
+                select(Job).where(Job.id == job_ids[0], Job.user_id == user_id)
+            )
+            job_a = result_a.scalar_one_or_none()
+
+            result_b = await db.execute(
+                select(Job).where(Job.id == job_ids[1], Job.user_id == user_id)
+            )
+            job_b = result_b.scalar_one_or_none()
+
+            if not job_a or not job_b:
+                return {"task_id": None, "result": {"message": "One or both jobs not found"}}
+
+            def _job_summary(job: Job) -> dict:
+                salary_range = None
+                if job.salary_min or job.salary_max:
+                    currency = job.salary_currency or "USD"
+                    salary_range = f"{currency} {job.salary_min or '?'} - {job.salary_max or '?'}"
+                return {
+                    "title": job.title,
+                    "company": job.company,
+                    "score": job.score,
+                    "salary_range": salary_range,
+                    "location": job.location,
+                    "skills_matched": job.skills_matched,
+                    "skills_missing": job.skills_missing,
+                }
+
+            return {
+                "task_id": None,
+                "result": {
+                    "job_a": _job_summary(job_a),
+                    "job_b": _job_summary(job_b),
+                },
+            }
+
+        elif action == "help":
+            return {
+                "task_id": None,
+                "result": {
+                    "commands": {
+                        "/discover": "Trigger job discovery for active profile",
+                        "/score": "Score a specific job or bulk score new jobs",
+                        "/generate": "Generate resume/cover letter for a job",
+                        "/stats": "View your application statistics",
+                        "/compare": "Compare two jobs side by side",
+                        "/help": "Show available commands",
+                    },
+                },
+            }
 
         else:
             return {"task_id": None, "result": {"message": f"Unknown action: {action}"}}
