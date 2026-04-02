@@ -6,6 +6,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -18,6 +19,7 @@ from app.schemas.copilot import (
     ExecuteRequest,
     ExecuteResponse,
 )
+from app.services import copilot_service
 
 router = APIRouter(prefix="/copilot")
 
@@ -29,16 +31,25 @@ async def chat(
     db: AsyncSession = Depends(get_db),
 ):
     """Stream a copilot chat response via SSE."""
-    raise NotImplementedError
+
+    async def generate():
+        async for chunk in copilot_service.chat_stream(
+            db, current_user.id, body.message, body.context, body.conversation_id
+        ):
+            yield f"data: {chunk}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 
 @router.get("/conversations", response_model=DataResponse[list[ConversationResponse]])
 async def list_conversations(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> DataResponse[list[ConversationResponse]]:
+) -> dict:
     """List all copilot conversations for the current user."""
-    raise NotImplementedError
+    conversations = await copilot_service.list_conversations(db, current_user.id)
+    return {"data": conversations}
 
 
 @router.delete("/conversations/{conversation_id}", response_model=SuccessResponse)
@@ -46,9 +57,10 @@ async def delete_conversation(
     conversation_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> SuccessResponse:
+) -> dict:
     """Delete a copilot conversation."""
-    raise NotImplementedError
+    await copilot_service.delete_conversation(db, current_user.id, conversation_id)
+    return {"success": True}
 
 
 @router.post("/execute", response_model=ExecuteResponse)
@@ -56,6 +68,9 @@ async def execute_action(
     body: ExecuteRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> ExecuteResponse:
+) -> dict:
     """Execute a copilot-suggested action with confirmation."""
-    raise NotImplementedError
+    result = await copilot_service.execute_action(
+        db, current_user.id, body.action, body.params, body.confirmation_token
+    )
+    return result

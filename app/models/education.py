@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Boolean, Float, ForeignKey, String
+from sqlalchemy import Boolean, Float, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -20,3 +20,4 @@ class Education(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     end_date: Mapped[str | None] = mapped_column(String(20), nullable=True)
     gpa: Mapped[float | None] = mapped_column(Float, nullable=True)
     show_gpa: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    relevant_coursework: Mapped[str | None] = mapped_column(Text, nullable=True)

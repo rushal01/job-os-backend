@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from difflib import SequenceMatcher
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -303,7 +303,7 @@ def freshness_score(job: Job) -> float:
 
     try:
         posted = datetime.fromisoformat(job.posted_date.replace("Z", "+00:00"))
-        days_old = (datetime.now(timezone.utc) - posted).days
+        days_old = (datetime.now(UTC) - posted).days
     except (ValueError, TypeError):
         return 50.0
 
@@ -344,7 +344,7 @@ def compute_risk(job: Job, profile: Profile, skills_missing: list[str]) -> float
     if job.posted_date:
         try:
             posted = datetime.fromisoformat(job.posted_date.replace("Z", "+00:00"))
-            if (datetime.now(timezone.utc) - posted).days > 30:
+            if (datetime.now(UTC) - posted).days > 30:
                 risk += 1.0
         except (ValueError, TypeError):
             pass

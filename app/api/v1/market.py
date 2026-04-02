@@ -11,6 +11,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.schemas.common import DataResponse
 from app.schemas.market import MarketInsight
+from app.services import market_service
 
 router = APIRouter(prefix="/market")
 
@@ -23,7 +24,8 @@ async def get_market_insights(
     db: AsyncSession = Depends(get_db),
 ) -> DataResponse[list[MarketInsight]]:
     """Get market intelligence for a role/location."""
-    raise NotImplementedError
+    insights = await market_service.get_market_insights(db, role, location)
+    return DataResponse(data=[MarketInsight(**i) for i in insights])
 
 
 @router.get("/salary", response_model=DataResponse[dict])
@@ -34,7 +36,8 @@ async def get_salary_data(
     db: AsyncSession = Depends(get_db),
 ) -> DataResponse[dict]:
     """Get salary data for a role/location."""
-    raise NotImplementedError
+    data = await market_service.get_salary_data(db, role, location)
+    return DataResponse(data=data)
 
 
 @router.get("/trends", response_model=DataResponse[dict])
@@ -43,4 +46,5 @@ async def get_market_trends(
     db: AsyncSession = Depends(get_db),
 ) -> DataResponse[dict]:
     """Get job market trends."""
-    raise NotImplementedError
+    data = await market_service.get_market_trends(db)
+    return DataResponse(data=data)

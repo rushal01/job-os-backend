@@ -6,7 +6,7 @@ Defines request/response models for the human review queue.
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class ReviewQueueItem(BaseModel):
@@ -44,12 +44,14 @@ class ApproveRequest(BaseModel):
     """POST /review/:id/approve request body."""
 
     edited_content: str | None = None
+    notes: str | None = None  # Frontend compatibility alias
 
 
 class RejectRequest(BaseModel):
     """POST /review/:id/reject request body."""
 
-    reason: str
+    reason: str = ""
+    notes: str | None = None  # Frontend compatibility alias
 
 
 class RegenerateRequest(BaseModel):

@@ -1,14 +1,15 @@
 import enum
+from datetime import datetime
 
+from sqlalchemy import Boolean, DateTime, String
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy import String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 
-class UserRole(str, enum.Enum):
+class UserRole(enum.StrEnum):
     USER = "user"
     SUPER_ADMIN = "super_admin"
 
@@ -26,6 +27,12 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     timezone: Mapped[str] = mapped_column(String(50), default="UTC", nullable=False)
     settings: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)  # type: ignore[assignment]
+    has_completed_onboarding: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default="false"
+    )
+    last_login_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     supabase_uid: Mapped[str] = mapped_column(
         String(255), unique=True, nullable=False, index=True
     )

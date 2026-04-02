@@ -7,7 +7,7 @@ and the internal AI proxy request/response types.
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class APIKeyInfo(BaseModel):

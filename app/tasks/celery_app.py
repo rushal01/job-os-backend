@@ -22,7 +22,24 @@ celery_app.conf.update(
     task_max_retries=3,
 )
 
-celery_app.conf.beat_schedule = {}
+celery_app.conf.beat_schedule = {
+    "discover-jobs-every-6-hours": {
+        "task": "scheduled.run_all_discoveries",
+        "schedule": 6 * 3600,  # every 6 hours
+    },
+    "score-new-jobs-every-hour": {
+        "task": "scheduled.auto_score_new_jobs",
+        "schedule": 3600,  # every hour
+    },
+    "cleanup-notifications-daily": {
+        "task": "scheduled.cleanup_old_notifications",
+        "schedule": 86400,  # daily
+    },
+    "expire-stale-jobs-daily": {
+        "task": "scheduled.expire_stale_jobs",
+        "schedule": 86400,  # daily
+    },
+}
 
 celery_app.autodiscover_tasks(
     [

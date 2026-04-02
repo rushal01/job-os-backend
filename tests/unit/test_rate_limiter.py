@@ -7,15 +7,14 @@
 - test_rate_limiter_skips_when_redis_unavailable
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from starlette.requests import Request
 from starlette.responses import Response
-from starlette.datastructures import URL, Headers
 
-from app.core.rate_limiter import RateLimiterMiddleware
 from app.core.exceptions import AppError, ErrorCode
+from app.core.rate_limiter import RateLimiterMiddleware
 
 
 def _make_request(path: str = "/api/v1/jobs", method: str = "GET", user_id: str | None = "user-123") -> Request:

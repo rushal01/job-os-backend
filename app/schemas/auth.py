@@ -49,7 +49,10 @@ class UserSchema(BaseModel):
     role: str
     avatar_url: str | None = None
     timezone: str
+    has_completed_onboarding: bool = False
     created_at: datetime
+    updated_at: datetime
+    last_login_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -65,3 +68,11 @@ class SessionResponse(BaseModel):
 
 class UserResponse(BaseModel):
     user: UserSchema
+
+
+class UserUpdateRequest(BaseModel):
+    full_name: str | None = None
+    timezone: str | None = None
+    avatar_url: str | None = None
+    has_completed_onboarding: bool | None = None
+    settings: dict | None = None

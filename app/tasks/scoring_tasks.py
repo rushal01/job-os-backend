@@ -24,7 +24,6 @@ def score_job(self, user_id: str, job_id: str) -> dict:
 
     async def _score():
         from sqlalchemy import select
-        from sqlalchemy.ext.asyncio import AsyncSession
 
         from app.db.session import async_session
         from app.models.job import Job
